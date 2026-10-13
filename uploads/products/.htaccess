@@ -1,0 +1,3 @@
+Options -ExecCGI -Indexes
+RemoveHandler .php .phtml .php5
+RemoveType .php .phtml .php5
