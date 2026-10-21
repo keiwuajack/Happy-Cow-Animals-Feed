@@ -165,3 +165,11 @@ html, body { overflow-x: hidden; }
 .rpt-page .reports-container { display: block; grid-template-columns: none; width: 100%; }
 
 .rpt-pos { color: #1e8449; } .rpt-neg { color: #c0392b; }
+
+.rpt-daily-takings-intro { margin: 0 0 14px; }
+.rpt-daily-takings-intro h2 { margin: 0 0 5px; color: #253747; font-size: 20px; }
+.rpt-daily-takings-intro h2 i { color: #21834b; margin-right: 7px; }
+.rpt-daily-takings-intro p, .rpt-takings-note { margin: 0; color: #697780; font-size: 12px; }
+.rpt-takings-note { margin-top: 5px; font-weight: 400; }
+#dailyTakingsTable tfoot th { padding: 13px 10px; border-top: 2px solid #dbe5df; background: #f4f8f5; color: #24392c; font-size: 13px; text-align: right; }
+#dailyTakingsTable tfoot th:first-child { text-align: left; }

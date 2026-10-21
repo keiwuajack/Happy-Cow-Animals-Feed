@@ -20,11 +20,32 @@ cd /d "C:\xampp\htdocs\happy-cow-pos"
 C:\xampp\mysql\bin\mysql.exe -u root -e "CREATE DATABASE agrovet_pos CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
 C:\xampp\mysql\bin\mysql.exe -u root agrovet_pos < config\schema.sql
 C:\xampp\php\php.exe config\install.php
+C:\xampp\php\php.exe config\migrate_user_permissions.php
 ```
 
 The first command creates a new database. If `agrovet_pos` already exists, stop and verify it is safe to use before importing anything. The schema import contains table definitions only. The installer adds the initial administrator and product categories, then prints a randomly generated, one-time administrator password. Keep that password private.
 
 The default database connection is for a local XAMPP installation (`root` with no password). If the client has changed its MySQL credentials, set matching `POS_DB_HOST`, `POS_DB_USER`, `POS_DB_PASS`, and `POS_DB_NAME` environment variables for both the PHP command line and Apache before installation.
+
+## Existing database product-field upgrade
+
+If product saving reports a missing `barcode`, `expiry_date`, or `image` column on a database created by an older version, back up the database and run this additive migration from the application folder:
+
+```bat
+C:\xampp\php\php.exe config\migrate_product_fields.php
+```
+
+It adds only missing, nullable product fields and keeps existing product records.
+
+## Existing database user-permissions upgrade
+
+To enable per-user section access in User Management on an existing database, back up the database and run this additive migration from the application folder:
+
+```bat
+C:\xampp\php\php.exe config\migrate_user_permissions.php
+```
+
+It adds one nullable permissions column to `users`; existing accounts continue using their role defaults.
 
 ## 3. Sign in and configure the shop
 

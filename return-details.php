@@ -40,7 +40,7 @@ if (!$return) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Return Details - Happy Cow Animal Feeds</title>
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
-    <link rel="stylesheet" href="assets/css/style.css?v=20261011-3">
+    <link rel="stylesheet" href="assets/css/style.css?v=20261021-1">
 </head>
 <body>
     <div class="container">

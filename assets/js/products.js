@@ -53,12 +53,15 @@ function loadProducts() {
     fetch('api/get_products.php?all=1')
         .then(response => response.json())
         .then(data => {
-            if (data.success) {
-                products = data.products;
-                displayProducts(products);
-            }
+            if (!data.success) throw new Error(data.message || 'Could not load products');
+            products = data.products;
+            filterProducts();
         })
-        .catch(error => console.error('Error loading products:', error));
+        .catch(error => {
+            console.error('Error loading products:', error);
+            document.querySelector('#productsTable tbody').innerHTML = '<tr><td colspan="9" style="text-align:center">Could not load products. Refresh the page or contact an administrator.</td></tr>';
+            showAlert(error.message || 'Error loading products', 'error');
+        });
 }
 
 function loadCategories() {
@@ -106,16 +109,14 @@ function displayProducts(productsToDisplay) {
             <td>${product.category_name || 'N/A'}</td>
             <td>${formatCurrency(product.cost_price)}</td>
             <td>${formatCurrency(product.selling_price)}</td>
-            <td class="${isLowStock ? 'text-danger' : ''}">${product.quantity} ${product.unit}</td>
+            <td class="${isLowStock ? 'text-danger' : ''}">${product.quantity}</td>
             <td>${product.unit}</td>
             <td><span class="badge badge-${product.status}">${product.status}</span></td>
             <td>
                 <button class="btn-icon" onclick="editProduct(${product.id})" title="Edit">
                     <i class="fas fa-edit"></i>
                 </button>
-                <button class="btn-icon text-danger" onclick="deleteProduct(${product.id})" title="Delete">
-                    <i class="fas fa-trash"></i>
-                </button>
+                ${window.canArchiveRecords && product.status === 'active' ? `<button class="btn-icon text-danger" onclick="deleteProduct(${product.id})" title="Archive product"><i class="fas fa-box-archive"></i></button>` : ''}
             </td>
         `;
         tbody.appendChild(row);
@@ -275,7 +276,7 @@ function saveProduct(e) {
 }
 
 async function deleteProduct(id) {
-    if (!(await appConfirm('Are you sure you want to delete this product?', {danger: true}))) {
+    if (!(await appConfirm('Archive this product? It will be hidden from active inventory, while past sales are kept.', {danger: true}))) {
         return;
     }
     

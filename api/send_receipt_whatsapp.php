@@ -14,17 +14,40 @@ if ($saleId <= 0) {
     echo json_encode(['success' => false, 'message' => 'Invalid sale']);
     exit;
 }
-$saleResult = query("SELECT s.*, c.name AS customer_name, c.whatsapp_number FROM sales s LEFT JOIN customers c ON c.id = s.customer_id WHERE s.id = $saleId");
+$saleSql = "SELECT s.*, c.name AS customer_name, c.whatsapp_number FROM sales s LEFT JOIN customers c ON c.id = s.customer_id WHERE s.id = ?";
+$isCashier = strtolower((string) ($_SESSION['role'] ?? '')) === 'cashier';
+if ($isCashier) {
+    $saleSql .= ' AND s.user_id = ?';
+}
+$saleStmt = $conn->prepare($saleSql);
+if ($isCashier) {
+    $cashierId = (int) $_SESSION['user_id'];
+    $saleStmt->bind_param('ii', $saleId, $cashierId);
+} else {
+    $saleStmt->bind_param('i', $saleId);
+}
+$saleStmt->execute();
+$saleResult = $saleStmt->get_result();
 $sale = $saleResult ? $saleResult->fetch_assoc() : null;
-if (!$sale || empty($sale['whatsapp_number'])) {
+$saleStmt->close();
+if (!$sale) {
+    http_response_code(404);
+    echo json_encode(['success' => false, 'message' => 'Sale not found']);
+    exit;
+}
+if (empty($sale['whatsapp_number'])) {
     echo json_encode(['success' => false, 'message' => 'Customer has no WhatsApp number']);
     exit;
 }
-$itemResult = query("SELECT product_name AS name, quantity, subtotal AS total FROM sale_items WHERE sale_id = $saleId");
+$itemStmt = $conn->prepare("SELECT product_name AS name, quantity, subtotal AS total FROM sale_items WHERE sale_id = ?");
+$itemStmt->bind_param('i', $saleId);
+$itemStmt->execute();
+$itemResult = $itemStmt->get_result();
 $items = [];
 while ($item = $itemResult->fetch_assoc()) {
     $items[] = $item;
 }
+$itemStmt->close();
 try {
     $service = new WhatsAppService();
     echo json_encode($service->sendReceipt($sale['whatsapp_number'], $sale['invoice_number'], $sale['total'], $sale['customer_name'], $items));

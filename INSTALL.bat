@@ -25,6 +25,10 @@ if errorlevel 1 ( echo Failed to import tables. & pause & exit /b 1 )
 
 echo Creating administrator account...
 "%PHP%" "%APPDIR%\config\install.php"
+"%PHP%" "%APPDIR%\config\migrate_product_fields.php"
+if errorlevel 1 ( echo Product fields migration failed. & pause & exit /b 1 )
+"%PHP%" "%APPDIR%\config\migrate_user_permissions.php"
+if errorlevel 1 ( echo User permissions migration failed. & pause & exit /b 1 )
 
 echo.
 echo Scheduling daily backup...

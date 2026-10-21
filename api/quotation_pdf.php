@@ -43,6 +43,7 @@ try {
 <html>
 <head>
     <meta charset="UTF-8">
+    <link rel="icon" type="image/svg+xml" href="../favicon.svg">
     <title>Quotation - <?php echo $quote['quote_number']; ?></title>
     <style>
         body {
@@ -152,7 +153,15 @@ try {
             cursor: pointer;
             font-size: 14px;
         }
+        @page {
+            margin: 0;
+        }
         @media print {
+            body {
+                max-width: none;
+                margin: 0;
+                padding: 15mm;
+            }
             .print-btn {
                 display: none;
             }

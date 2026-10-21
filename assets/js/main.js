@@ -15,6 +15,10 @@ window.fetch = function(input, options = {}) {
 
 // Mobile menu toggle
 document.addEventListener('DOMContentLoaded', function() {
+    if (new URLSearchParams(window.location.search).get('access') === 'denied') {
+        showAlert('Your role does not have access to that section.', 'error');
+    }
+
     const menuToggle = document.getElementById('menuToggle');
     const sidebar = document.querySelector('.sidebar');
     
@@ -44,8 +48,9 @@ document.addEventListener('DOMContentLoaded', function() {
     if (userMenuToggle && userDropdown) {
         userMenuToggle.addEventListener('click', function(e) {
             e.stopPropagation();
-            userDropdown.classList.toggle('show');
-            userMenuToggle.classList.toggle('active');
+            const isOpen = userDropdown.classList.toggle('show');
+            userMenuToggle.classList.toggle('active', isOpen);
+            userMenuToggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
         });
         
         // Close dropdown when clicking outside
@@ -53,6 +58,16 @@ document.addEventListener('DOMContentLoaded', function() {
             if (!userMenuToggle.contains(e.target) && !userDropdown.contains(e.target)) {
                 userDropdown.classList.remove('show');
                 userMenuToggle.classList.remove('active');
+                userMenuToggle.setAttribute('aria-expanded', 'false');
+            }
+        });
+
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && userDropdown.classList.contains('show')) {
+                userDropdown.classList.remove('show');
+                userMenuToggle.classList.remove('active');
+                userMenuToggle.setAttribute('aria-expanded', 'false');
+                userMenuToggle.focus();
             }
         });
     }

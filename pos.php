@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 session_start();
 require_once 'config/database.php';
 require_once 'config/settings_helper.php';
@@ -13,10 +13,17 @@ $expectedOpening = null;
 $shiftTable = query("SHOW TABLES LIKE 'cashier_shifts'");
 if ($shiftTable && $shiftTable->num_rows > 0) {
     $uid = (int) $_SESSION['user_id'];
-    $open = query("SELECT id FROM cashier_shifts WHERE user_id = $uid AND status = 'open' LIMIT 1");
+    $openStmt = $conn->prepare("SELECT id FROM cashier_shifts WHERE user_id = ? AND status = 'open' LIMIT 1");
+    $openStmt->bind_param('i', $uid);
+    $openStmt->execute();
+    $open = $openStmt->get_result();
+    $openStmt->close();
     $needsShift = !($open && $open->fetch_assoc());
     if ($needsShift) {
-        $prev = query("SELECT closing_cash FROM cashier_shifts WHERE status = 'closed' ORDER BY closed_at DESC, id DESC LIMIT 1");
+        $prevStmt = $conn->prepare("SELECT closing_cash FROM cashier_shifts WHERE status = 'closed' ORDER BY closed_at DESC, id DESC LIMIT 1");
+        $prevStmt->execute();
+        $prev = $prevStmt->get_result();
+        $prevStmt->close();
         $row = $prev ? $prev->fetch_assoc() : null;
         $expectedOpening = $row ? (float) $row['closing_cash'] : null;
     }
@@ -29,11 +36,11 @@ if ($shiftTable && $shiftTable->num_rows > 0) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Point of Sale - Happy Cow Animal Feeds</title>
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
-    <link rel="stylesheet" href="assets/css/style.css?v=20261011-3">
-    <link rel="stylesheet" href="assets/css/pos.css?v=20261012-5">
-    <link rel="stylesheet" href="assets/css/shifts.css?v=20261012-1">
-    <link rel="stylesheet" href="assets/css/mobile-responsive.css?v=20260903-2">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="assets/css/style.css?v=20261021-1">
+    <link rel="stylesheet" href="assets/css/pos.css?v=20261021-1">
+    <link rel="stylesheet" href="assets/css/shifts.css?v=20261018-3">
+    <link rel="stylesheet" href="assets/css/mobile-responsive.css?v=20261021-1">
+    <link rel="stylesheet" href="assets/vendor/fontawesome/css/all.min.css">
 </head>
 <body>
     <div class="container">
@@ -70,11 +77,25 @@ if ($shiftTable && $shiftTable->num_rows > 0) {
 
             <div class="pos-container">
                 <div class="pos-left">
+                    <div class="catalog-heading">
+                        <div>
+                            <span class="pos-eyebrow">HAPPY COW FEEDS · POINT OF SALE</span>
+                            <h1>Find products</h1>
+                            <p>Search by product, SKU, or barcode and add items to the sale.</p>
+                        </div>
+                        <span class="catalog-count" id="catalogCount" aria-live="polite">Loading products</span>
+                    </div>
                     <div class="search-section">
-                        <input type="text" id="productSearch" placeholder="Search products by name or SKU..." class="search-input">
-                        <select id="categoryFilter" class="category-filter">
+                        <label class="pos-search-wrap" for="productSearch">
+                            <i class="fas fa-search" aria-hidden="true"></i>
+                            <input type="text" id="productSearch" placeholder="Search products, SKU, or barcode..." class="search-input" autocomplete="off">
+                        </label>
+                        <label class="pos-category-wrap" for="categoryFilter">
+                            <span>Category</span>
+                            <select id="categoryFilter" class="category-filter">
                             <option value="">All Categories</option>
-                        </select>
+                            </select>
+                        </label>
                     </div>
                     
                     <div class="products-grid" id="productsGrid">
@@ -115,8 +136,8 @@ if ($shiftTable && $shiftTable->num_rows > 0) {
                             <span id="subtotal">KSh 0.00</span>
                         </div>
                         <div class="summary-row">
-                            <span>Discount:</span>
-                            <input type="number" id="discount" value="0" min="0" step="0.01" class="discount-input">
+                            <label for="discount">Discount (KSh):</label>
+                            <input type="number" id="discount" value="0" min="0" step="0.01" class="discount-input" inputmode="decimal" aria-label="Sale discount in shillings">
                         </div>
                         <div class="summary-row">
                             <span>Tax (<?php echo rtrim(rtrim(number_format(hc_tax_rate(), 2), '0'), '.'); ?>%):</span>
@@ -161,6 +182,19 @@ if ($shiftTable && $shiftTable->num_rows > 0) {
                 <button type="button" class="close" aria-label="Close payment window">&times;</button>
             </div>
             <div class="modal-body">
+                <div class="checkout-price-breakdown">
+                    <div class="checkout-price-row"><span>Subtotal</span><strong id="paymentSubtotal">KSh 0.00</strong></div>
+                    <div class="form-group checkout-discount-field">
+                        <label for="checkoutDiscount">Discount for this sale</label>
+                        <div class="checkout-input-wrap">
+                            <span>KSh</span>
+                            <input type="number" id="checkoutDiscount" value="0" min="0" step="0.01" required inputmode="decimal">
+                        </div>
+                        <small id="discountHint">Enter the discount amount for this sale only. You can also change it in the sale summary.</small>
+                        <small id="discountError" class="checkout-discount-error" hidden>Discount cannot be greater than the subtotal.</small>
+                    </div>
+                    <div class="checkout-price-row"><span>Tax</span><strong id="paymentTax">KSh 0.00</strong></div>
+                </div>
                 <div class="checkout-total">
                     <span>Total due</span>
                     <strong id="modalTotal">KSh 0.00</strong>
@@ -216,9 +250,9 @@ if ($shiftTable && $shiftTable->num_rows > 0) {
     </div>
     
     <script>window.TAX_RATE = <?php echo hc_tax_rate(); ?>;</script>
-<script src="assets/js/main.js?v=20261012-1"></script>
+<script src="assets/js/main.js?v=20261021-1"></script>
     <script src="assets/js/barcode-scanner.js?v=20261011-2"></script>
-    <script src="assets/js/pos.js?v=20261012-2"></script>
+    <script src="assets/js/pos.js?v=20261021-1"></script>
     <script src="assets/js/mpesa-pos.js?v=20261012-2"></script>
 </body>
 </html>

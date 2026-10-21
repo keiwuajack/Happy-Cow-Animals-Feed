@@ -1,8 +1,16 @@
 Options -Indexes
 
-# Keep application internals and local data out of the web surface.
-RedirectMatch 404 ^/(config|includes|backups)(/|$)
-RedirectMatch 404 /(?:\.env(?:\..*)?|composer\.(?:json|lock)|.*\.(?:sql|log|ini|bak|dist))$
+# Keep application internals, repository metadata, and local data out of the web surface.
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^(?:config|includes|backups|\.git|\.codex|\.aws)(?:/|$) - [F,L,NC]
+    RewriteRule (^|/)\.(?:env(?:\..*)?|git|codex|aws)(?:/|$) - [F,L,NC]
+    RewriteRule \.(?:sql|log|ini|bak|dist)$ - [F,L,NC]
+</IfModule>
+
+<FilesMatch "^(?:\.env(?:\..*)?|composer\.(?:json|lock))$">
+    Require all denied
+</FilesMatch>
 
 # Baseline browser protections. HTTPS should be enabled at the hosting provider.
 Header always set X-Content-Type-Options "nosniff"

@@ -33,8 +33,11 @@ if ($existing && $existing->num_rows > 0) {
 
 if ($stmt->execute()) {
     $user_id = (int) $_SESSION['user_id'];
-    $ip = $conn->real_escape_string($_SERVER['REMOTE_ADDR'] ?? '');
-    $conn->query("INSERT INTO activity_log (user_id, action, module, description, ip_address) VALUES ($user_id, 'Update Settings', 'Loyalty Points', 'Updated loyalty program settings', '$ip')");
+    $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+    $logStmt = $conn->prepare("INSERT INTO activity_log (user_id, action, module, description, ip_address) VALUES (?, 'Update Settings', 'Loyalty Points', 'Updated loyalty program settings', ?)");
+    $logStmt->bind_param('is', $user_id, $ip);
+    $logStmt->execute();
+    $logStmt->close();
     echo json_encode(['success' => true, 'message' => 'Settings updated successfully']);
 } else {
     echo json_encode(['success' => false, 'message' => 'Error updating settings']);

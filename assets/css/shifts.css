@@ -1,39 +1,891 @@
-/* Cashier shift UI */
-.shift-lock { position: fixed; inset: 0; z-index: 2000; display: flex; align-items: center; justify-content: center; padding: 16px; background: linear-gradient(135deg, rgba(20,40,30,.82), rgba(15,25,35,.88)); backdrop-filter: blur(8px); animation: shiftFade .3s ease; }
-.shift-card { width: 100%; max-width: 460px; background: #fff; border-radius: 20px; padding: 32px 28px; box-shadow: 0 25px 60px rgba(0,0,0,.35); animation: shiftRise .4s cubic-bezier(.2,.8,.2,1); }
-.shift-icon { width: 68px; height: 68px; margin: 0 auto 16px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 28px; color: #fff; background: linear-gradient(135deg, #2ecc71, #1e9e57); box-shadow: 0 8px 20px rgba(46,204,113,.45); }
-.shift-card h2 { text-align: center; margin: 0 0 6px; font-size: 22px; color: #1f2d3a; }
-.shift-sub { text-align: center; color: #6b7785; margin: 0 0 20px; font-size: 14px; line-height: 1.5; }
-.shift-hint { display: flex; align-items: center; gap: 10px; background: #eefaf3; border: 1px solid #cdeedb; color: #1e7a46; border-radius: 12px; padding: 12px 14px; margin-bottom: 18px; font-size: 14px; }
-.shift-field { margin-bottom: 14px; }
-.shift-field label { display: block; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: #6b7785; margin-bottom: 6px; }
-.shift-field input { width: 100%; box-sizing: border-box; padding: 13px 14px; border: 2px solid #e3e8ee; border-radius: 12px; font-size: 16px; transition: border-color .2s, box-shadow .2s; }
-.shift-field input:focus { outline: none; border-color: #2ecc71; box-shadow: 0 0 0 4px rgba(46,204,113,.18); }
-.shift-field.big input { font-size: 24px; font-weight: 700; text-align: center; }
-.shift-btn { width: 100%; padding: 14px; border: 0; border-radius: 12px; font-size: 16px; font-weight: 700; color: #fff; cursor: pointer; background: linear-gradient(135deg, #2ecc71, #1e9e57); box-shadow: 0 8px 18px rgba(46,204,113,.35); transition: transform .15s, box-shadow .15s; }
-.shift-btn:hover { transform: translateY(-2px); box-shadow: 0 12px 24px rgba(46,204,113,.45); }
-.shift-btn.danger { background: linear-gradient(135deg, #ff6b5b, #d63a2a); box-shadow: 0 8px 18px rgba(231,76,60,.35); }
+.shifts-page {
+    max-width: 1600px;
+    margin: 0 auto;
+}
 
-.shift-hero { display: flex; flex-wrap: wrap; align-items: center; gap: 18px; padding: 22px; border-radius: 18px; color: #fff; background: linear-gradient(135deg, #1e9e57, #2ecc71 60%, #58d68d); box-shadow: 0 12px 28px rgba(46,204,113,.3); margin-bottom: 20px; }
-.shift-hero.idle { background: linear-gradient(135deg, #34495e, #4b6584); box-shadow: 0 12px 28px rgba(52,73,94,.3); }
-.shift-hero h2 { margin: 0; font-size: 22px; color: #fff; }
-.shift-hero p { margin: 4px 0 0; opacity: .9; }
-.shift-pulse { width: 14px; height: 14px; border-radius: 50%; background: #fff; box-shadow: 0 0 0 0 rgba(255,255,255,.7); animation: shiftPulse 1.8s infinite; }
-.shift-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-bottom: 20px; }
-.shift-stat { background: #f7f9fb; border: 1px solid #e8edf2; border-radius: 14px; padding: 16px; }
-.shift-stat span { display: block; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: #6b7785; }
-.shift-stat strong { display: block; margin-top: 6px; font-size: 20px; color: #1f2d3a; }
-.shift-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; align-items: end; }
+.shifts-page .page-header {
+    align-items: flex-end;
+    min-height: 146px;
+    margin-bottom: 20px;
+    padding: 24px 28px;
+    border: 1px solid #dcebe1;
+    border-radius: 20px;
+    background: radial-gradient(ellipse at 88% 0%, rgba(194, 230, 204, .58), transparent 38%), linear-gradient(125deg, #f7fbf7, #edf7ef 68%, #e7f3e9);
+    box-shadow: 0 9px 25px rgba(35, 82, 53, .055);
+}
 
-.badge { display: inline-block; padding: 4px 12px; border-radius: 999px; font-size: 12px; font-weight: 700; }
-.badge.open { background: #e3f8ec; color: #1e7a46; }
-.badge.closed { background: #eceff3; color: #5b6673; }
-.badge.ok { background: #e3f8ec; color: #1e7a46; }
-.badge.short { background: #fdeaea; color: #c0392b; }
-.badge.over { background: #fff3e0; color: #d9730d; }
-#shiftHistory tr { transition: background .15s; }
-#shiftHistory tr:hover { background: #f4faf7; }
+.shifts-heading-copy .eyebrow {
+    margin: 0 0 7px;
+    color: #688072;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+}
 
-@keyframes shiftFade { from { opacity: 0; } to { opacity: 1; } }
-@keyframes shiftRise { from { opacity: 0; transform: translateY(24px) scale(.97); } to { opacity: 1; transform: none; } }
-@keyframes shiftPulse { 70% { box-shadow: 0 0 0 12px rgba(255,255,255,0); } 100% { box-shadow: 0 0 0 0 rgba(255,255,255,0); } }
+.shifts-heading-copy h1 {
+    gap: 12px;
+    margin: 0 0 7px;
+    font-size: 29px;
+    line-height: 1.2;
+}
+
+.shifts-heading-copy h1 i {
+    display: inline-flex;
+    width: 44px;
+    height: 44px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 14px;
+    background: #eaf5ed;
+    color: #247847;
+    font-size: 19px;
+}
+
+.shifts-heading-copy > p:last-child {
+    margin: 0;
+    color: #748078;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.shift-panel,
+.shift-history-card {
+    overflow: hidden;
+    padding: 0;
+    border: 1px solid #e7ece9;
+    border-radius: 18px;
+    background: #fff;
+    box-shadow: 0 10px 30px rgba(28, 48, 39, .06);
+}
+
+.shift-loading {
+    display: flex;
+    min-height: 180px;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    color: #6d7a72;
+    font-size: 14px;
+}
+
+.shift-loading i {
+    color: #308153;
+}
+
+.shift-state-card {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 22px 25px;
+    background: linear-gradient(110deg, #f3f8f4, #edf6ef);
+}
+
+.shift-state-card.active {
+    background: linear-gradient(110deg, #edf8f0, #f5faf6);
+}
+
+.shift-state-card.idle {
+    background: linear-gradient(110deg, #f2f5f8, #f8fafb);
+}
+
+.shift-state-icon {
+    display: inline-flex;
+    flex: 0 0 auto;
+    width: 48px;
+    height: 48px;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #d8e9dd;
+    border-radius: 15px;
+    background: #fff;
+    color: #247847;
+    font-size: 18px;
+}
+
+.shift-state-card.idle .shift-state-icon {
+    border-color: #e1e7ec;
+    color: #647486;
+}
+
+.shift-state-copy {
+    min-width: 0;
+}
+
+.shift-state-title-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.shift-state-copy h2 {
+    margin: 0;
+    color: #26372d;
+    font-size: 19px;
+}
+
+.shift-state-copy p {
+    margin: 5px 0 0;
+    color: #6c7b71;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.shift-live-badge,
+.shift-badge {
+    display: inline-flex;
+    min-height: 24px;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 4px 9px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: .025em;
+    white-space: nowrap;
+}
+
+.shift-live-badge {
+    min-height: 38px;
+    gap: 10px;
+    padding: 7px 15px;
+    border: 1px solid #238044;
+    background: #19753b;
+    color: #fff;
+    text-transform: uppercase;
+    font-size: 14px;
+    letter-spacing: .06em;
+    box-shadow: 0 4px 12px rgba(25, 117, 59, .22);
+}
+
+.shift-live-dot {
+    position: relative;
+    width: 15px;
+    height: 15px;
+    flex: 0 0 15px;
+    border-radius: 50%;
+    background: #8dffad;
+    box-shadow: 0 0 0 4px rgba(255, 255, 255, .2), 0 0 14px rgba(111, 255, 150, .95);
+    animation: shift-live-pulse 1.35s ease-out infinite;
+}
+
+.drawer-closed-badge {
+    border-color: #a64a29;
+    background: #a94326;
+    box-shadow: 0 4px 12px rgba(169, 67, 38, .22);
+}
+
+.shift-closed-dot {
+    width: 15px;
+    height: 15px;
+    flex: 0 0 15px;
+    border-radius: 50%;
+    background: #ffe08a;
+    box-shadow: 0 0 0 4px rgba(255, 255, 255, .2), 0 0 14px rgba(255, 199, 87, .95);
+    animation: shift-closed-pulse 1.35s ease-out infinite;
+}
+
+@keyframes shift-live-pulse {
+    0% { box-shadow: 0 0 0 3px rgba(255, 255, 255, .24), 0 0 9px rgba(111, 255, 150, .75); }
+    70% { box-shadow: 0 0 0 9px rgba(255, 255, 255, 0), 0 0 17px rgba(111, 255, 150, 1); }
+    100% { box-shadow: 0 0 0 3px rgba(255, 255, 255, 0), 0 0 9px rgba(111, 255, 150, .75); }
+}
+
+@keyframes shift-closed-pulse {
+    0% { box-shadow: 0 0 0 3px rgba(255, 255, 255, .24), 0 0 9px rgba(255, 199, 87, .75); }
+    70% { box-shadow: 0 0 0 9px rgba(255, 255, 255, 0), 0 0 17px rgba(255, 199, 87, 1); }
+    100% { box-shadow: 0 0 0 3px rgba(255, 255, 255, 0), 0 0 9px rgba(255, 199, 87, .75); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .shift-live-dot,
+    .shift-closed-dot { animation: none; }
+}
+
+.shift-hint {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin: 18px 22px 0;
+    padding: 12px 14px;
+    border: 1px solid #dcebe0;
+    border-radius: 11px;
+    background: #f4faf5;
+    color: #45694f;
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.shift-hint > i {
+    margin-top: 2px;
+    color: #348252;
+}
+
+.shift-hint strong {
+    color: #245e37;
+    font-variant-numeric: tabular-nums;
+}
+
+.shift-stats {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    padding: 18px 22px 0;
+}
+
+.shift-stats.shift-takings-stats {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 155px), 1fr));
+    padding-top: 12px;
+}
+
+.shift-takings-heading {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 14px;
+    margin: 20px 22px 0;
+}
+
+.shift-takings-heading h3,
+.shift-form-heading h3 {
+    margin: 0 0 4px;
+    color: #2a3d31;
+    font-size: 15px;
+    font-weight: 750;
+}
+
+.shift-takings-heading p,
+.shift-form-heading p {
+    margin: 0;
+    color: #748078;
+    font-size: 12px;
+    line-height: 1.45;
+}
+
+.shift-takings-heading > span {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    color: #758279;
+    font-size: 11px;
+    white-space: nowrap;
+}
+
+.shift-takings-heading > span i {
+    color: #518261;
+}
+
+.total-received-stat {
+    border-color: #cce4d3;
+    background: #f3faf5;
+}
+
+.total-received-stat .shift-stat-icon {
+    background: #e0f2e6;
+}
+
+.expected-cash-stat {
+    border-color: #d5e4f5;
+    background: #f5f9fe;
+}
+
+.shift-stat {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    gap: 12px;
+    padding: 13px 15px;
+    border: 1px solid #e9eeeb;
+    border-radius: 12px;
+    background: #fbfcfb;
+}
+
+.shift-stat-icon {
+    display: inline-flex;
+    flex: 0 0 auto;
+    width: 34px;
+    height: 34px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    background: #eff6f1;
+    color: #43845a;
+}
+
+.shift-stat-copy {
+    display: grid;
+    gap: 4px;
+    min-width: 0;
+}
+
+.shift-stat-copy span {
+    color: #748078;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+}
+
+.shift-stat-copy strong {
+    overflow-wrap: anywhere;
+    color: #2e4035;
+    font-size: 14px;
+    font-variant-numeric: tabular-nums;
+}
+
+.shift-form {
+    display: grid;
+    grid-template-columns: minmax(210px, .95fr) minmax(230px, 1.3fr) minmax(165px, .65fr);
+    align-items: end;
+    gap: 14px;
+    margin: 18px 22px 22px;
+    padding-top: 18px;
+    border-top: 1px solid #edf0ee;
+}
+
+.shift-form-heading {
+    grid-column: 1 / -1;
+    padding-bottom: 11px;
+    border-bottom: 1px solid #edf0ee;
+}
+
+.shift-field {
+    display: grid;
+    align-content: start;
+    gap: 7px;
+    min-width: 0;
+}
+
+.shift-field label {
+    color: #47564d;
+    font-size: 12px;
+    font-weight: 750;
+}
+
+.shift-field-hint {
+    margin: -2px 0 0;
+    color: #87928b;
+    font-size: 10px;
+    line-height: 1.45;
+}
+
+.shift-money-input {
+    display: flex;
+    min-height: 48px;
+    align-items: center;
+    overflow: hidden;
+    border: 1px solid #dce4df;
+    border-radius: 11px;
+    background: #fff;
+    transition: border-color .16s ease, box-shadow .16s ease;
+}
+
+.shift-money-input:focus-within,
+.shift-field textarea:focus {
+    border-color: #50a36a;
+    outline: 0;
+    box-shadow: 0 0 0 3px rgba(46, 142, 75, .12);
+}
+
+.shift-money-prefix {
+    flex: 0 0 auto;
+    padding: 0 0 0 13px;
+    color: #77847c;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.shift-money-input input {
+    width: 100%;
+    min-width: 0;
+    min-height: 46px;
+    padding: 0 12px;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    color: #26372d;
+    font: 700 18px Arial, sans-serif;
+    font-variant-numeric: tabular-nums;
+}
+
+.shift-money-input input:focus {
+    box-shadow: none;
+}
+
+.shift-field textarea {
+    width: 100%;
+    min-height: 48px;
+    padding: 12px 13px;
+    resize: vertical;
+    border: 1px solid #dce4df;
+    border-radius: 11px;
+    outline: 0;
+    background: #fff;
+    color: #26372d;
+    font: 13px Arial, sans-serif;
+    line-height: 1.4;
+    transition: border-color .16s ease, box-shadow .16s ease;
+}
+
+.shift-field textarea::placeholder {
+    color: #a0aaa3;
+}
+
+.shift-btn {
+    display: inline-flex;
+    width: 100%;
+    min-height: 48px;
+    align-items: center;
+    justify-content: center;
+    gap: 9px;
+    padding: 0 15px;
+    border: 1px solid #227943;
+    border-radius: 11px;
+    background: #247d47;
+    box-shadow: 0 5px 12px rgba(36, 125, 71, .16);
+    color: #fff;
+    cursor: pointer;
+    font: 750 13px Arial, sans-serif;
+    transition: background .15s ease, transform .15s ease, box-shadow .15s ease;
+}
+
+.shift-btn:hover {
+    transform: translateY(-1px);
+    background: #1d6c3c;
+    box-shadow: 0 8px 17px rgba(36, 125, 71, .22);
+}
+
+.shift-btn.danger {
+    border-color: #b54036;
+    background: #bd493f;
+    box-shadow: 0 5px 12px rgba(189, 73, 63, .14);
+}
+
+.shift-btn.danger:hover {
+    background: #a73d34;
+    box-shadow: 0 8px 17px rgba(189, 73, 63, .2);
+}
+
+.shift-btn:focus-visible {
+    outline: 3px solid rgba(57, 145, 81, .25);
+    outline-offset: 2px;
+}
+
+.shift-history-card {
+    margin-top: 20px;
+}
+
+.shift-history-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 20px 22px 16px;
+}
+
+.shift-history-heading h2 {
+    margin: 0 0 5px;
+    color: #2a3a30;
+    font-size: 17px;
+}
+
+.shift-history-heading p {
+    margin: 0;
+    color: #7a867f;
+    font-size: 11px;
+    line-height: 1.45;
+}
+
+.shift-history-count {
+    flex: 0 0 auto;
+    padding: 6px 10px;
+    border: 1px solid #e6ece8;
+    border-radius: 999px;
+    background: #f8faf8;
+    color: #67756c;
+    font-size: 10px;
+    font-weight: 750;
+}
+
+.shift-table-wrap {
+    width: 100%;
+    overflow-x: auto;
+    border-top: 1px solid #edf0ee;
+}
+
+.shift-history-table {
+    width: 100%;
+    min-width: 1450px;
+    margin: 0;
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+.shift-history-table thead {
+    background: #f8faf8;
+}
+
+.shift-history-table th {
+    padding: 12px 11px;
+    color: #748078;
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: .055em;
+    text-align: left;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.shift-history-table td {
+    max-width: 220px;
+    padding: 12px 11px;
+    border-top: 1px solid #f0f2f1;
+    color: #48564d;
+    font-size: 11px;
+    line-height: 1.45;
+    vertical-align: middle;
+}
+
+.shift-history-table tbody tr:hover {
+    background: #f7fbf8;
+}
+
+.shift-history-table td:nth-child(3),
+.shift-history-table td:nth-child(5),
+.shift-history-table td:nth-child(6),
+.shift-history-table td:nth-child(7),
+.shift-history-table td.money-cell {
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.shift-history-table td.total-received-cell {
+    color: #245e37;
+    font-weight: 800;
+}
+
+.shift-history-table td:first-child {
+    color: #2e4035;
+    font-weight: 700;
+}
+
+.shift-history-table td:last-child {
+    min-width: 140px;
+    color: #748078;
+    overflow-wrap: anywhere;
+}
+
+.shift-badge.open {
+    background: #e4f4e9;
+    color: #287344;
+}
+
+.shift-badge.closed {
+    background: #eef1f3;
+    color: #5e6b63;
+}
+
+.shift-badge.ok {
+    background: #e4f4e9;
+    color: #287344;
+}
+
+.shift-badge.short {
+    background: #fdecea;
+    color: #b64239;
+}
+
+.shift-badge.over {
+    background: #fff3df;
+    color: #9b6516;
+}
+
+.shift-empty-cell {
+    height: 148px;
+    color: #7a867f !important;
+    text-align: center;
+}
+
+.shift-empty-cell i {
+    display: block;
+    margin-bottom: 9px;
+    color: #91a097;
+    font-size: 22px;
+}
+
+.shift-empty-cell strong {
+    display: block;
+    color: #44544a;
+    font-size: 13px;
+}
+
+.shift-empty-cell span {
+    display: block;
+    margin-top: 4px;
+    font-size: 11px;
+}
+
+@media (max-width: 950px) {
+    .shift-form {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .shift-form .shift-submit-field {
+        grid-column: 1 / -1;
+    }
+}
+
+@media (max-width: 640px) {
+    .shifts-page .page-header {
+        align-items: flex-start;
+        margin-bottom: 18px;
+        min-height: auto;
+        padding: 20px 17px;
+        border-radius: 17px;
+    }
+
+    .shifts-heading-copy h1 {
+        gap: 9px;
+        font-size: 24px;
+    }
+
+    .shifts-heading-copy h1 i {
+        width: 39px;
+        height: 39px;
+        border-radius: 12px;
+        font-size: 16px;
+    }
+
+    .shifts-heading-copy > p:last-child {
+        max-width: 390px;
+        font-size: 12px;
+    }
+
+    .shift-panel,
+    .shift-history-card {
+        border-radius: 15px;
+    }
+
+    .shift-state-card {
+        align-items: flex-start;
+        gap: 12px;
+        padding: 17px 15px;
+    }
+
+    .shift-state-icon {
+        width: 42px;
+        height: 42px;
+        border-radius: 13px;
+    }
+
+    .shift-state-copy h2 {
+        font-size: 16px;
+    }
+
+    .shift-state-copy p {
+        font-size: 12px;
+    }
+
+    .shift-hint {
+        margin: 14px 14px 0;
+    }
+
+    .shift-stats {
+        grid-template-columns: 1fr;
+        gap: 9px;
+        padding: 14px 14px 0;
+    }
+
+    .shift-stat {
+        padding: 11px 12px;
+    }
+
+    .shift-stat-copy strong {
+        font-size: 13px;
+    }
+
+    .shift-form {
+        grid-template-columns: 1fr;
+        gap: 13px;
+        margin: 15px 14px 16px;
+        padding-top: 15px;
+    }
+
+    .shift-form .shift-submit-field {
+        grid-column: auto;
+    }
+
+    .shift-form-heading {
+        grid-column: auto;
+    }
+
+    .shift-takings-heading {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 6px;
+        margin: 17px 14px 0;
+    }
+
+    .shift-takings-heading > span {
+        white-space: normal;
+    }
+
+    .shift-history-heading {
+        padding: 17px 15px 14px;
+    }
+
+    .shift-history-heading h2 {
+        font-size: 16px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .shift-btn {
+        transition: none;
+    }
+}
+
+/* Larger type for cash counts and shift history readability. */
+.shifts-heading-copy .eyebrow { font-size: 12px; }
+.shifts-heading-copy h1 { font-size: 32px; }
+.shifts-heading-copy > p:last-child { font-size: 16px; }
+.shift-loading { font-size: 16px; }
+.shift-state-copy h2 { font-size: 22px; }
+.shift-state-copy p { font-size: 16px; }
+.shift-live-badge { min-height: 38px; padding: 7px 15px; font-size: 14px; }
+.shift-badge { min-height: 30px; padding: 6px 11px; font-size: 13px; }
+.shift-hint { font-size: 15px; }
+.shift-stat-copy span { font-size: 12px; }
+.shift-stat-copy strong { font-size: 17px; }
+.shift-field label { font-size: 15px; }
+.shift-field-hint { color: #647168; font-size: 13px; }
+.shift-money-prefix { font-size: 15px; }
+.shift-money-input input { font-size: 21px; }
+.shift-field textarea { font-size: 15px; }
+.shift-btn { font-size: 15px; }
+.shift-history-heading h2 { font-size: 21px; }
+.shift-history-heading p { font-size: 14px; }
+.shift-history-count { font-size: 13px; }
+.shift-history-table th { font-size: 12px; }
+.shift-history-table td { padding: 15px 12px; font-size: 14px; }
+.shift-empty-cell strong { font-size: 15px; }
+.shift-empty-cell span { font-size: 13px; }
+
+@media (max-width: 640px) {
+    .shifts-heading-copy h1 { font-size: 26px; }
+    .shifts-heading-copy > p:last-child { font-size: 14px; }
+    .shift-state-copy h2 { font-size: 18px; }
+    .shift-state-copy p { font-size: 14px; }
+    .shift-hint { font-size: 14px; }
+    .shift-history-heading h2 { font-size: 19px; }
+    .shift-history-heading p { font-size: 13px; }
+}
+
+/* POS shift gate uses the same shift form language in a focused overlay. */
+.shift-lock {
+    position: fixed;
+    inset: 0;
+    z-index: 2000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 18px;
+    overflow-y: auto;
+    background: rgba(19, 35, 26, .72);
+    backdrop-filter: blur(7px);
+}
+
+.shift-card {
+    width: min(100%, 520px);
+    padding: 30px;
+    border: 1px solid #e5ece7;
+    border-radius: 22px;
+    background: #fff;
+    box-shadow: 0 24px 70px rgba(0, 0, 0, .25);
+}
+
+.shift-icon {
+    display: flex;
+    width: 58px;
+    height: 58px;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 15px;
+    border: 1px solid #d9eddf;
+    border-radius: 18px;
+    background: #eef8f1;
+    color: #277b45;
+    font-size: 23px;
+}
+
+.shift-card h2 {
+    margin: 0 0 6px;
+    color: #26372d;
+    font-size: 24px;
+    text-align: center;
+}
+
+.shift-sub {
+    margin: 0 0 18px;
+    color: #68766e;
+    font-size: 15px;
+    line-height: 1.5;
+    text-align: center;
+}
+
+#posOpenShiftForm {
+    display: grid;
+    gap: 14px;
+    margin-top: 20px;
+}
+
+#posOpenShiftForm .shift-field {
+    margin: 0;
+}
+
+#posOpenShiftForm .shift-field label {
+    color: #34453a;
+    font-size: 15px;
+}
+
+#posOpenShiftForm .shift-field input {
+    width: 100%;
+    min-height: 48px;
+    padding: 11px 14px;
+    border: 1px solid #d7e1da;
+    border-radius: 10px;
+    background: #fff;
+    color: #26372d;
+    font: 15px Arial, sans-serif;
+}
+
+#posOpenShiftForm .shift-field input:focus {
+    border-color: #3c9a5c;
+    outline: 0;
+    box-shadow: 0 0 0 3px rgba(46, 150, 82, .13);
+}
+
+#posOpenShiftForm .shift-field.big input {
+    min-height: 58px;
+    font-size: 22px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+#posOpenShiftForm .shift-btn {
+    margin-top: 3px;
+    min-height: 50px;
+    font-size: 16px;
+}
+
+@media (max-width: 560px) {
+    .shift-card {
+        padding: 23px 18px;
+        border-radius: 18px;
+    }
+
+    .shift-card h2 { font-size: 21px; }
+    .shift-sub { font-size: 14px; }
+}

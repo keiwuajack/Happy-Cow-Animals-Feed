@@ -25,8 +25,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     
     if ($error === '') {
         require_once 'config/database.php';
-        $sql = "SELECT * FROM users WHERE username = '$username' AND status = 'active'";
-        $result = query($sql);
+        $stmt = $conn->prepare("SELECT * FROM users WHERE username = ? AND status = 'active'");
+        $stmt->bind_param('s', $username);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $stmt->close();
     }
     
     if ($error === '' && $result && $result->num_rows > 0) {
@@ -59,50 +62,96 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - Happy Cow Animal Feeds</title>
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
-    <link rel="stylesheet" href="assets/css/style.css?v=20261011-3">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="assets/css/style.css?v=20261018-2">
+    <link rel="stylesheet" href="assets/css/login.css?v=20261021-1">
+    <link rel="stylesheet" href="assets/vendor/fontawesome/css/all.min.css">
 </head>
 <body class="login-page">
-    <div class="login-container">
-        <div class="login-box">
-            <div class="login-header">
-                <div class="login-brand"><span class="brand-mark" aria-hidden="true"><i class="fas fa-cow"></i></span><h1>HAPPY COW</h1></div>
-                <p class="login-brand-subtitle">Animal Feeds</p>
-                <p>Sign in to continue</p>
+    <main class="auth-shell">
+        <aside class="auth-story" aria-label="Happy Cow Animal Feeds">
+            <div class="auth-brand">
+                <img src="favicon.svg" alt="" width="48" height="48">
+                <span><strong>HAPPY COW</strong><small>Animal Feeds</small></span>
             </div>
-            
+
+            <div class="auth-story-copy">
+                <span class="auth-kicker"><span></span> YOUR BUSINESS, IN GOOD HANDS</span>
+                <h1>Good to see you again.</h1>
+                <p>Keep your sales, stock, and customer records moving together in one place.</p>
+            </div>
+
+            <div class="auth-story-bottom">
+                <span class="auth-story-line" aria-hidden="true"></span>
+                <p>Made for the people who keep farms growing.</p>
+            </div>
+            <span class="auth-decoration auth-decoration-one" aria-hidden="true"></span>
+            <span class="auth-decoration auth-decoration-two" aria-hidden="true"></span>
+        </aside>
+
+        <section class="auth-panel" aria-labelledby="loginTitle">
+            <div class="auth-form-wrap">
+                <div class="auth-heading">
+                    <span class="auth-eyebrow">STAFF SIGN IN</span>
+                    <h2 id="loginTitle">Welcome back</h2>
+                    <p>Enter your account details to access your workspace.</p>
+                </div>
+
             <?php if ($error): ?>
-                <div class="alert alert-error">
-                    <i class="fas fa-exclamation-circle"></i>
-                    <?php echo $error; ?>
+                <div class="auth-error" id="loginError" role="alert">
+                    <i class="fas fa-circle-exclamation" aria-hidden="true"></i>
+                    <span><?php echo htmlspecialchars($error, ENT_QUOTES, 'UTF-8'); ?></span>
                 </div>
             <?php endif; ?>
-            
-            <form method="POST" action="">
+
+            <form class="auth-form" method="POST" action="">
                 <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars(security_csrf_token(), ENT_QUOTES, 'UTF-8'); ?>">
-                <div class="form-group">
-                    <label for="username">
-                        <i class="fas fa-user"></i> Username
-                    </label>
-                    <input type="text" id="username" name="username" required autofocus>
+                <div class="auth-field">
+                    <label for="username">Username</label>
+                    <div class="auth-input-wrap">
+                        <i class="fas fa-user" aria-hidden="true"></i>
+                        <input type="text" id="username" name="username" autocomplete="username" autocapitalize="none" spellcheck="false" value="<?php echo htmlspecialchars($_POST['username'] ?? '', ENT_QUOTES, 'UTF-8'); ?>" required autofocus>
+                    </div>
                 </div>
-                
-                <div class="form-group">
-                    <label for="password">
-                        <i class="fas fa-lock"></i> Password
-                    </label>
-                    <input type="password" id="password" name="password" required>
+
+                <div class="auth-field">
+                    <label for="password">Password</label>
+                    <div class="auth-input-wrap">
+                        <i class="fas fa-lock" aria-hidden="true"></i>
+                        <input type="password" id="password" name="password" autocomplete="current-password" required>
+                        <button class="auth-password-toggle" type="button" id="togglePassword" aria-label="Show password" aria-pressed="false">
+                            <i class="fas fa-eye" aria-hidden="true"></i>
+                        </button>
+                    </div>
                 </div>
-                
-                <button type="submit" class="btn btn-primary btn-block">
-                    <i class="fas fa-sign-in-alt"></i> Login
+
+                <button type="submit" class="auth-submit">
+                    <span>Sign in</span><i class="fas fa-arrow-right" aria-hidden="true"></i>
                 </button>
             </form>
-            
-            <div class="login-footer">
-                <p>Use the credentials provided by your system administrator.</p><p style="margin-top:10px;font-size:12px">Powered by Vision Data Company</p>
+
+                <div class="auth-security-note">
+                    <i class="fas fa-shield-halved" aria-hidden="true"></i>
+                    <span>Use the sign-in details provided by your system administrator.</span>
+                </div>
             </div>
-        </div>
-    </div>
+
+            <footer class="auth-footer">
+                <span>Happy Cow Animal Feeds</span>
+                <span>Powered by Vision Data Company</span>
+            </footer>
+        </section>
+    </main>
+
+    <script>
+        const passwordField = document.getElementById('password');
+        const togglePassword = document.getElementById('togglePassword');
+        togglePassword.addEventListener('click', () => {
+            const showPassword = passwordField.type === 'password';
+            passwordField.type = showPassword ? 'text' : 'password';
+            togglePassword.setAttribute('aria-pressed', String(showPassword));
+            togglePassword.setAttribute('aria-label', showPassword ? 'Hide password' : 'Show password');
+            togglePassword.innerHTML = `<i class="fas fa-${showPassword ? 'eye-slash' : 'eye'}" aria-hidden="true"></i>`;
+        });
+    </script>
 </body>
 </html>

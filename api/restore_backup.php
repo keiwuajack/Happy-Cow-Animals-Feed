@@ -22,7 +22,11 @@ if (!$tempFile || !move_uploaded_file($_FILES['backup_file']['tmp_name'], $tempF
     echo json_encode(['success' => false, 'message' => 'Unable to read backup file']);
     exit;
 }
-$mysql = 'C:\\xampp1\\mysql\\bin\\mysql.exe';
+$mysql = getenv('POS_MYSQL_PATH');
+if (!$mysql) {
+    $xamppMysql = dirname(__DIR__, 3) . DIRECTORY_SEPARATOR . 'mysql' . DIRECTORY_SEPARATOR . 'bin' . DIRECTORY_SEPARATOR . (PHP_OS_FAMILY === 'Windows' ? 'mysql.exe' : 'mysql');
+    $mysql = is_file($xamppMysql) ? $xamppMysql : 'mysql';
+}
 $command = escapeshellarg($mysql) . ' --user=' . escapeshellarg(DB_USER) . ' --password=' . escapeshellarg(DB_PASS) . ' --host=' . escapeshellarg(DB_HOST) . ' ' . escapeshellarg(DB_NAME) . ' < ' . escapeshellarg($tempFile) . ' 2>&1';
 $output = [];
 $returnCode = 0;

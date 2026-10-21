@@ -14,8 +14,9 @@ if (!isset($_SESSION['user_id']) || strtolower($_SESSION['role']) !== 'admin') {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Database Backup - Happy Cow Animal Feeds</title>
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
-    <link rel="stylesheet" href="assets/css/style.css?v=20261011-3">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="assets/css/style.css?v=20261021-1">
+    <link rel="stylesheet" href="assets/css/settings.css?v=20261018-1">
+    <link rel="stylesheet" href="assets/vendor/fontawesome/css/all.min.css">
 </head>
 <body>
     <div class="container">
@@ -24,7 +25,7 @@ if (!isset($_SESSION['user_id']) || strtolower($_SESSION['role']) !== 'admin') {
         <div class="main-content">
             <?php include 'includes/header.php'; ?>
             
-            <div class="page-content">
+            <div class="page-content settings-page">
                 <div class="page-header">
                     <h1><i class="fas fa-database"></i> Database Backup & Restore</h1>
                 </div>
@@ -197,7 +198,7 @@ if (!isset($_SESSION['user_id']) || strtolower($_SESSION['role']) !== 'admin') {
         </div>
     </div>
     
-    <script src="assets/js/main.js?v=20261012-1"></script>
+    <script src="assets/js/main.js?v=20261021-1"></script>
     <script src="assets/js/backup.js?v=20261011-2"></script>
 </body>
 </html>

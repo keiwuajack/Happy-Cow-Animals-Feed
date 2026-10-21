@@ -9,7 +9,7 @@ if (!isset($_SESSION['user_id']) || strtolower($_SESSION['role']) !== 'admin') {
     exit();
 }
 
-$result = $conn->query("SELECT * FROM email_settings LIMIT 1");
+$result = $conn->query("SELECT id, smtp_host, smtp_port, smtp_username, smtp_encryption, from_email, from_name, enabled, send_receipts, send_quotations, (smtp_password <> '') AS has_smtp_password FROM email_settings ORDER BY id LIMIT 1");
 
 if ($result->num_rows > 0) {
     $settings = $result->fetch_assoc();

@@ -14,8 +14,9 @@ if (!isset($_SESSION['user_id']) || strtolower($_SESSION['role']) !== 'admin') {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Activity Log - Happy Cow Animal Feeds</title>
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
-    <link rel="stylesheet" href="assets/css/style.css?v=20261011-3">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="assets/css/style.css?v=20261021-1">
+    <link rel="stylesheet" href="assets/css/settings.css?v=20261018-1">
+    <link rel="stylesheet" href="assets/vendor/fontawesome/css/all.min.css">
 </head>
 <body>
     <div class="container">
@@ -24,9 +25,13 @@ if (!isset($_SESSION['user_id']) || strtolower($_SESSION['role']) !== 'admin') {
         <div class="main-content">
             <?php include 'includes/header.php'; ?>
             
-            <div class="page-content">
+            <main class="page-content settings-page audit-page">
                 <div class="page-header">
-                    <h1><i class="fas fa-history"></i> Activity Log & Audit Trail</h1>
+                    <div>
+                        <p class="settings-eyebrow">Security and accountability</p>
+                        <h1><i class="fas fa-history"></i> Activity Log & Audit Trail</h1>
+                        <p>Review staff actions and filter the audit history by date, user, or module.</p>
+                    </div>
                     <button class="btn btn-danger" id="clearLogsBtn">
                         <i class="fas fa-trash"></i> Clear Old Logs
                     </button>
@@ -78,7 +83,7 @@ if (!isset($_SESSION['user_id']) || strtolower($_SESSION['role']) !== 'admin') {
                 <!-- Filters -->
                 <div class="card" style="margin-bottom: 20px;">
                     <div class="card-body">
-                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; align-items: end;">
+                        <div class="audit-filter-grid">
                             <div class="form-group" style="margin: 0;">
                                 <label>Filter by User</label>
                                 <select id="filterUser">
@@ -117,7 +122,7 @@ if (!isset($_SESSION['user_id']) || strtolower($_SESSION['role']) !== 'admin') {
                                 <input type="text" id="searchLog" placeholder="Search activities...">
                             </div>
                             
-                            <div style="display: flex; gap: 10px;">
+                            <div class="audit-filter-actions">
                                 <button class="btn btn-primary" id="applyFilters">
                                     <i class="fas fa-filter"></i> Apply
                                 </button>
@@ -160,11 +165,11 @@ if (!isset($_SESSION['user_id']) || strtolower($_SESSION['role']) !== 'admin') {
                         </div>
                     </div>
                 </div>
-            </div>
+            </main>
         </div>
     </div>
     
-    <script src="assets/js/main.js?v=20261012-1"></script>
+    <script src="assets/js/main.js?v=20261021-1"></script>
     <script src="assets/js/activity-log.js?v=20261011-2"></script>
 </body>
 </html>

@@ -1,7 +1,7 @@
 <?php
 require_once __DIR__ . '/database.php';
 
-if (session_status() === PHP_SESSION_NONE) {
+if (PHP_SAPI !== 'cli' && session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 

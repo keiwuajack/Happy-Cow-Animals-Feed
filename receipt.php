@@ -19,6 +19,11 @@ $sql = "SELECT s.*, c.name as customer_name, c.phone as customer_phone, c.email 
         LEFT JOIN users u ON s.user_id = u.id
         WHERE s.id = $sale_id";
 
+if (strtolower((string) ($_SESSION['role'] ?? '')) === 'cashier') {
+    $cashierId = (int) $_SESSION['user_id'];
+    $sql .= " AND s.user_id = {$cashierId}";
+}
+
 $result = query($sql);
 $sale = $result->fetch_assoc();
 
@@ -195,20 +200,41 @@ while ($row = $items_result->fetch_assoc()) {
             background: #27ae60;
         }
         
+        /* Keep browser-generated URL/header text out of the receipt's print margins. */
+        @page {
+            margin: 0;
+        }
+
         @media print {
+            html,
             body {
-                background: white;
-                padding: 0;
+                width: 100%;
+                margin: 0 !important;
+                background: #fff !important;
+            }
+
+            body {
+                padding: 3mm !important;
             }
             
             .receipt-container {
+                width: 100%;
+                max-width: 76mm;
+                margin: 0 auto;
                 box-shadow: none;
-                max-width: 100%;
-                padding: 10px;
+                padding: 3mm;
             }
             
             .print-button {
-                display: none;
+                display: none !important;
+            }
+
+            .items-table,
+            .totals,
+            .payment-info,
+            .receipt-footer {
+                break-inside: avoid;
+                page-break-inside: avoid;
             }
         }
     </style>

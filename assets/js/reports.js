@@ -131,6 +131,9 @@ function generateReport() {
         case 'sales':
             loadSalesReport(startDate, endDate);
             break;
+        case 'daily-takings':
+            loadDailyTakings(startDate, endDate);
+            break;
         case 'best-sellers':
             loadBestSellersReport(startDate, endDate);
             break;
@@ -144,6 +147,63 @@ function generateReport() {
             loadCustomersReport(startDate, endDate);
             break;
     }
+}
+
+function loadDailyTakings(startDate, endDate) {
+    const tbody = document.querySelector('#dailyTakingsTable tbody');
+    tbody.innerHTML = emptyRow(6, 'spinner fa-spin', 'Loading daily takings');
+    fetch(`api/get_daily_takings.php?start_date=${encodeURIComponent(startDate)}&end_date=${encodeURIComponent(endDate)}`)
+        .then(response => response.json())
+        .then(data => {
+            if (!data.success) throw new Error(data.message || 'Could not load daily takings');
+            displayDailyTakings(data.rows || [], data.totals || {});
+        })
+        .catch(error => {
+            console.error('Daily takings report error:', error);
+            tbody.innerHTML = emptyRow(6, 'triangle-exclamation', 'Could not load daily takings');
+        });
+}
+
+function displayDailyTakings(rows, totals) {
+    const values = {
+        cash: Number(totals.cash_received) || 0,
+        mpesa: Number(totals.mpesa_received) || 0,
+        cardBank: Number(totals.card_bank_received) || 0,
+        credit: Number(totals.credit_received) || 0,
+        received: Number(totals.total_received) || 0
+    };
+    const stat = (color, icon, label, value) => `
+        <div class="rpt-stat" style="--c:${color}">
+            <div class="rpt-stat-icon"><i class="fas fa-${icon}"></i></div>
+            <div><p>${label}</p><h2>${formatCurrency(value)}</h2></div>
+        </div>`;
+    document.getElementById('dailyTakingsSummary').innerHTML =
+        stat('#27ae60', 'money-bill-wave', 'Cash received', values.cash) +
+        stat('#168c82', 'mobile-screen-button', 'M-Pesa / Till', values.mpesa) +
+        stat('#3498db', 'credit-card', 'Card / bank', values.cardBank) +
+        stat('#9b59b6', 'file-invoice-dollar', 'Credit / unassigned', values.credit) +
+        stat('#1f3448', 'calculator', 'Total received', values.received);
+
+    const tbody = document.querySelector('#dailyTakingsTable tbody');
+    tbody.innerHTML = rows.length ? rows.map(row => `
+        <tr>
+            <td><strong>${formatDate(row.date)}</strong></td>
+            <td class="num">${formatCurrency(row.cash_received)}</td>
+            <td class="num">${formatCurrency(row.mpesa_received)}</td>
+            <td class="num">${formatCurrency(row.card_bank_received)}</td>
+            <td class="num">${formatCurrency(row.credit_received)}</td>
+            <td class="num"><strong>${formatCurrency(row.total_received)}</strong></td>
+        </tr>`).join('') : emptyRow(6, 'calendar-day', 'No payments received for this period');
+
+    document.querySelector('#dailyTakingsTable tfoot').innerHTML = `
+        <tr>
+            <th>Total for period</th>
+            <th class="num">${formatCurrency(values.cash)}</th>
+            <th class="num">${formatCurrency(values.mpesa)}</th>
+            <th class="num">${formatCurrency(values.cardBank)}</th>
+            <th class="num">${formatCurrency(values.credit)}</th>
+            <th class="num"><strong>${formatCurrency(values.received)}</strong></th>
+        </tr>`;
 }
 
 function loadSalesReport(startDate, endDate) {
@@ -366,11 +426,15 @@ function exportPDF() {
     const pdfElement = document.createElement('div');
     pdfElement.style.padding = '20px';
     pdfElement.style.backgroundColor = 'white';
+    const logoUrl = new URL('favicon.svg', document.baseURI).href;
     
     pdfElement.innerHTML = `
-        <div style="text-align: center; margin-bottom: 30px; border-bottom: 2px solid #333; padding-bottom: 20px;">
-            <h1 style="margin: 0 0 5px 0; color: #333;">Happy Cow Animal Feeds</h1>
-            <p style="margin: 0; color: #666;">Report Export</p>
+        <div style="display: flex; align-items: center; justify-content: center; gap: 16px; margin-bottom: 30px; border-bottom: 2px solid #333; padding-bottom: 20px;">
+            <img class="rpt-export-logo" src="${logoUrl}" alt="Happy Cow logo" style="width: 68px; height: 68px; object-fit: contain;">
+            <div style="text-align: left;">
+                <h1 style="margin: 0 0 5px 0; color: #276b3d;">Happy Cow Animal Feeds</h1>
+                <p style="margin: 0; color: #666;">Report Export</p>
+            </div>
         </div>
         
         <div style="margin-bottom: 20px; padding: 15px; background: #f5f5f5; border-radius: 5px;">
@@ -390,7 +454,18 @@ function exportPDF() {
         jsPDF: { orientation: 'portrait', unit: 'mm', format: 'a4' }
     };
     
-    html2pdf().set(opt).from(pdfElement).save().then(() => {
+    const logo = pdfElement.querySelector('.rpt-export-logo');
+    const logoReady = logo.complete
+        ? Promise.resolve()
+        : new Promise(resolve => {
+            logo.addEventListener('load', resolve, { once: true });
+            logo.addEventListener('error', resolve, { once: true });
+        });
+
+    logoReady.then(() => {
+        if (!logo.naturalWidth) logo.remove();
+        return html2pdf().set(opt).from(pdfElement).save();
+    }).then(() => {
         showAlert('PDF exported successfully!', 'success');
     }).catch(error => {
         console.error('PDF export error:', error);

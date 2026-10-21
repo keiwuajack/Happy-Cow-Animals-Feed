@@ -51,10 +51,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
 function updateNewStock() {
     const type = document.getElementById('adjustmentType').value;
-    const quantity = parseInt(document.getElementById('quantity').value) || 0;
+    const quantity = Number.parseInt(document.getElementById('quantity').value, 10) || 0;
+    const currentQuantity = Number(selectedProduct?.quantity);
     
-    if (selectedProduct && quantity > 0) {
-        let newQty = selectedProduct.quantity;
+    if (selectedProduct && quantity > 0 && Number.isFinite(currentQuantity)) {
+        let newQty = currentQuantity;
         
         if (type === 'add') {
             newQty += quantity;

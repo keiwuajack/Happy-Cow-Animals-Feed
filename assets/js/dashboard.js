@@ -25,50 +25,142 @@ function dashboardChartOptions(options) {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-    loadDashboardStats();
-    loadRecentTransactions();
-    loadCharts();
+    const root = document.querySelector('.dashboard-modern');
+    if (!root) return;
+
+    const permissions = {
+        cashier: root.dataset.isCashier === 'true',
+        shifts: root.dataset.canViewShifts === 'true',
+        inventory: root.dataset.canViewInventory === 'true',
+        analytics: root.dataset.canViewAnalytics === 'true',
+        sales: root.dataset.canViewSales === 'true'
+    };
+
+    loadDashboardStats(permissions);
+    if (permissions.shifts) loadDashboardShift(permissions);
+    if (permissions.sales) loadRecentTransactions();
+    if (permissions.analytics && typeof Chart !== 'undefined') loadCharts();
 });
 
-function loadDashboardStats() {
+function setDashboardText(id, value) {
+    const element = document.getElementById(id);
+    if (element) element.textContent = value;
+}
+
+function dashboardEscape(value) {
+    return String(value ?? '').replace(/[&<>"']/g, function(character) {
+        return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character];
+    });
+}
+
+function dashboardCurrency(value) {
+    return typeof formatCurrency === 'function' ? formatCurrency(Number(value) || 0) : 'KSh ' + (Number(value) || 0).toFixed(2);
+}
+
+function loadDashboardStats(permissions) {
     fetch('api/dashboard_stats.php')
         .then(response => response.json())
         .then(data => {
-            if (data.success) {
-                document.getElementById('todaySales').textContent = formatCurrency(data.todaySales);
-                document.getElementById('totalProducts').textContent = data.totalProducts;
-                document.getElementById('totalCustomers').textContent = data.totalCustomers;
-                document.getElementById('lowStockItems').textContent = data.lowStockItems;
-                document.getElementById('creditOutstanding').textContent = formatCurrency(data.creditOutstanding || 0);
-                document.getElementById('expiringProducts').textContent = data.expiringProducts || 0;
+            if (!data.success) return;
 
-                const attentionItems = [];
-                if (Number(data.lowStockItems) > 0) {
-                    attentionItems.push(`${data.lowStockItems} product${data.lowStockItems == 1 ? '' : 's'} need${data.lowStockItems == 1 ? 's' : ''} reordering`);
-                }
-                if (Number(data.expiringProducts) > 0) {
-                    attentionItems.push(`${data.expiringProducts} product${data.expiringProducts == 1 ? '' : 's'} expiring within 30 days`);
-                }
-                const attention = document.getElementById('dashboardAttention');
-                if (attentionItems.length > 0) {
-                    document.getElementById('dashboardAttentionText').textContent = attentionItems.join(' | ');
-                    attention.hidden = false;
-                }
+            if (!permissions.cashier && data.todaySales !== undefined) {
+                setDashboardText('todaySales', dashboardCurrency(data.todaySales));
+            }
+            if (data.totalProducts !== undefined) setDashboardText('totalProducts', Number(data.totalProducts).toLocaleString());
+            if (data.totalCustomers !== undefined) setDashboardText('totalCustomers', Number(data.totalCustomers).toLocaleString());
+            if (data.lowStockItems !== undefined) setDashboardText('lowStockItems', Number(data.lowStockItems).toLocaleString());
+            if (data.creditOutstanding !== undefined) setDashboardText('creditOutstanding', dashboardCurrency(data.creditOutstanding));
+            if (data.expiringProducts !== undefined) setDashboardText('expiringProducts', Number(data.expiringProducts).toLocaleString());
 
-                const attentionProducts = [];
-                (data.lowStockProducts || []).forEach(product => {
-                    attentionProducts.push(`<div class="attention-item"><i class="fas fa-boxes-stacked"></i><div><strong>${product.name}</strong><span>Only ${product.quantity} ${product.unit} left (reorder at ${product.reorder_level})</span></div><a href="products.php">View</a></div>`);
-                });
-                (data.expiringProductList || []).forEach(product => {
-                    attentionProducts.push(`<div class="attention-item attention-item-expiry"><i class="fas fa-calendar-xmark"></i><div><strong>${product.name}</strong><span>${product.quantity} ${product.unit} expiring on ${product.expiry_date}</span></div><a href="products.php">View</a></div>`);
-                });
-                if (attentionProducts.length > 0) {
-                    document.getElementById('attentionList').innerHTML = attentionProducts.join('');
-                    document.getElementById('dashboardNeedsAttention').hidden = false;
-                }
+            if (!permissions.inventory) return;
+            const attentionItems = [];
+            if (Number(data.lowStockItems) > 0) {
+                attentionItems.push(`${data.lowStockItems} product${Number(data.lowStockItems) === 1 ? '' : 's'} need${Number(data.lowStockItems) === 1 ? 's' : ''} reordering`);
+            }
+            if (Number(data.expiringProducts) > 0) {
+                attentionItems.push(`${data.expiringProducts} product${Number(data.expiringProducts) === 1 ? '' : 's'} expiring within 30 days`);
+            }
+            const attention = document.getElementById('dashboardAttention');
+            if (attention && attentionItems.length > 0) {
+                setDashboardText('dashboardAttentionText', attentionItems.join(' · '));
+                attention.hidden = false;
+            }
+
+            const attentionList = document.getElementById('attentionList');
+            const attentionSection = document.getElementById('dashboardNeedsAttention');
+            if (!attentionList || !attentionSection) return;
+
+            const reviewUrl = document.querySelector('.dashboard-modern')?.dataset.inventoryReviewUrl || 'inventory-intelligence.php';
+            const attentionProducts = [];
+            (data.lowStockProducts || []).forEach(product => {
+                attentionProducts.push(`<div class="attention-item"><i class="fas fa-boxes-stacked" aria-hidden="true"></i><div><strong>${dashboardEscape(product.name)}</strong><span>Only ${dashboardEscape(product.quantity)} ${dashboardEscape(product.unit)} left (reorder at ${dashboardEscape(product.reorder_level)})</span></div><a href="${dashboardEscape(reviewUrl)}">View</a></div>`);
+            });
+            (data.expiringProductList || []).forEach(product => {
+                attentionProducts.push(`<div class="attention-item attention-item-expiry"><i class="fas fa-calendar-xmark" aria-hidden="true"></i><div><strong>${dashboardEscape(product.name)}</strong><span>${dashboardEscape(product.quantity)} ${dashboardEscape(product.unit)} expiring on ${dashboardEscape(product.expiry_date)}</span></div><a href="${dashboardEscape(reviewUrl)}">View</a></div>`);
+            });
+            if (attentionProducts.length > 0) {
+                attentionList.innerHTML = attentionProducts.join('');
+                attentionSection.hidden = false;
             }
         })
         .catch(error => console.error('Error loading dashboard stats:', error));
+}
+
+function loadDashboardShift(permissions) {
+    const panel = document.getElementById('dashboardShiftOverview');
+    const metrics = document.getElementById('dashboardShiftMetrics');
+    if (!panel || !metrics) return;
+
+    fetch('api/shift_status.php')
+        .then(response => response.json())
+        .then(data => {
+            if (!data.success) throw new Error(data.message || 'Could not load shift status');
+
+            const shift = data.shift;
+            const title = document.getElementById('dashboardShiftTitle');
+            const message = document.getElementById('dashboardShiftMessage');
+            const linkText = document.getElementById('dashboardShiftLinkText');
+            panel.classList.toggle('is-active', Boolean(shift));
+            panel.classList.toggle('is-empty', !shift);
+
+            if (!shift) {
+                if (title) title.textContent = 'No active shift';
+                if (message) message.textContent = 'Open a shift and count your starting cash before the first sale.';
+                if (linkText) linkText.textContent = 'Open a shift';
+                metrics.innerHTML = [
+                    ['Cash received', 0], ['M-Pesa received', 0], ['Other payments', 0], ['Total received', 0], ['Expected cash', null]
+                ].map(([label, value]) => `<div class="dashboard-shift-metric"><span>${label}</span><strong>${value === null ? '—' : dashboardCurrency(value)}</strong></div>`).join('');
+                if (permissions.cashier) setDashboardText('todaySales', dashboardCurrency(0));
+                return;
+            }
+
+            if (title) title.textContent = 'Shift in progress';
+            if (message) message.textContent = 'Opened ' + dashboardFormatDate(shift.opened_at) + '. Your totals update as payments are recorded.';
+            if (linkText) linkText.textContent = 'Review or close shift';
+            const shiftMetrics = [
+                ['Cash received', shift.cash_sales],
+                ['M-Pesa received', shift.mpesa_sales],
+                ['Other payments', shift.card_sales],
+                ['Total received', shift.total_sales],
+                ['Expected cash', shift.expected_cash]
+            ];
+            metrics.innerHTML = shiftMetrics.map(([label, value]) => `<div class="dashboard-shift-metric"><span>${label}</span><strong>${dashboardCurrency(value)}</strong></div>`).join('');
+            if (permissions.cashier) setDashboardText('todaySales', dashboardCurrency(shift.total_sales));
+        })
+        .catch(error => {
+            panel.classList.add('is-error');
+            const title = document.getElementById('dashboardShiftTitle');
+            const message = document.getElementById('dashboardShiftMessage');
+            if (title) title.textContent = 'Shift status unavailable';
+            if (message) message.textContent = 'Open the cashier shift page to check your drawer.';
+            console.error('Error loading cashier shift:', error);
+        });
+}
+
+function dashboardFormatDate(value) {
+    if (!value) return 'the recorded time';
+    const date = new Date(String(value).replace(' ', 'T'));
+    return Number.isNaN(date.getTime()) ? 'the recorded time' : date.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
 }
 
 function loadRecentTransactions() {
@@ -77,6 +169,7 @@ function loadRecentTransactions() {
         .then(data => {
             if (data.success) {
                 const tbody = document.querySelector('#recentTransactions tbody');
+                if (!tbody) return;
                 tbody.innerHTML = '';
                 
                 if (data.transactions.length === 0) {
@@ -86,13 +179,21 @@ function loadRecentTransactions() {
                 
                 data.transactions.forEach(transaction => {
                     const row = document.createElement('tr');
-                    row.innerHTML = `
-                        <td>${transaction.invoice_number}</td>
-                        <td>${transaction.customer_name || 'Walk-in'}</td>
-                        <td>${new Date(transaction.created_at).toLocaleDateString()}</td>
-                        <td>${formatCurrency(transaction.total)}</td>
-                        <td><span class="badge badge-${transaction.payment_status}">${transaction.payment_status}</span></td>
-                    `;
+                    const invoice = document.createElement('td');
+                    invoice.textContent = transaction.invoice_number || '—';
+                    const customer = document.createElement('td');
+                    customer.textContent = transaction.customer_name || 'Walk-in';
+                    const date = document.createElement('td');
+                    date.textContent = dashboardFormatDate(transaction.created_at);
+                    const amount = document.createElement('td');
+                    amount.textContent = dashboardCurrency(transaction.total);
+                    const statusCell = document.createElement('td');
+                    const badge = document.createElement('span');
+                    const status = String(transaction.payment_status || 'unknown').toLowerCase();
+                    badge.className = 'badge badge-' + status.replace(/[^a-z0-9_-]/g, '');
+                    badge.textContent = status;
+                    statusCell.appendChild(badge);
+                    [invoice, customer, date, amount, statusCell].forEach(cell => row.appendChild(cell));
                     tbody.appendChild(row);
                 });
             }

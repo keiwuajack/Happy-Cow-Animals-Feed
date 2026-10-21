@@ -9,6 +9,7 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('addCustomerBtn').addEventListener('click', openAddModal);
     document.getElementById('searchCustomer').addEventListener('input', filterCustomers);
     document.getElementById('filterCustomerType').addEventListener('change', filterCustomers);
+    document.getElementById('filterCustomerStatus').addEventListener('change', filterCustomers);
     document.getElementById('customerForm').addEventListener('submit', saveCustomer);
     
     // Modal controls
@@ -30,12 +31,15 @@ function loadCustomers() {
     fetch('api/get_customers.php?all=1')
         .then(response => response.json())
         .then(data => {
-            if (data.success) {
-                customers = data.customers;
-                displayCustomers(customers);
-            }
+            if (!data.success) throw new Error(data.message || 'Could not load customers');
+            customers = data.customers;
+            filterCustomers();
         })
-        .catch(error => console.error('Error loading customers:', error));
+        .catch(error => {
+            console.error('Error loading customers:', error);
+            document.querySelector('#customersTable tbody').innerHTML = '<tr><td colspan="8" style="text-align:center">Could not load customers. Refresh the page or contact an administrator.</td></tr>';
+            showAlert(error.message || 'Error loading customers', 'error');
+        });
 }
 
 function displayCustomers(customersToDisplay) {
@@ -74,9 +78,7 @@ function displayCustomers(customersToDisplay) {
                 <button class="btn-icon" onclick="editCustomer(${customer.id})" title="Edit">
                     <i class="fas fa-edit"></i>
                 </button>
-                <button class="btn-icon text-danger" onclick="deleteCustomer(${customer.id})" title="Delete">
-                    <i class="fas fa-trash"></i>
-                </button>
+                ${window.canArchiveRecords && customer.status === 'active' ? `<button class="btn-icon text-danger" onclick="deleteCustomer(${customer.id})" title="Archive customer"><i class="fas fa-box-archive"></i></button>` : ''}
             </td>
         `;
         tbody.appendChild(row);
@@ -111,9 +113,7 @@ function displayCustomers(customersToDisplay) {
                 <button class="btn btn-sm btn-primary" onclick="editCustomer(${customer.id})">
                     <i class="fas fa-edit"></i> Edit
                 </button>
-                <button class="btn btn-sm" style="background: #e74c3c; color: white;" onclick="deleteCustomer(${customer.id})">
-                    <i class="fas fa-trash"></i> Delete
-                </button>
+                ${window.canArchiveRecords && customer.status === 'active' ? `<button class="btn btn-sm" style="background: #e74c3c; color: white;" onclick="deleteCustomer(${customer.id})"><i class="fas fa-box-archive"></i> Archive</button>` : ''}
             </div>
         `;
         cardView.appendChild(card);
@@ -142,6 +142,7 @@ window.addEventListener('resize', updateViewMode);
 function filterCustomers() {
     const searchTerm = document.getElementById('searchCustomer').value.toLowerCase();
     const customerType = document.getElementById('filterCustomerType').value;
+    const status = document.getElementById('filterCustomerStatus').value;
     
     let filtered = customers;
     
@@ -155,6 +156,10 @@ function filterCustomers() {
     
     if (customerType) {
         filtered = filtered.filter(c => c.customer_type === customerType);
+    }
+
+    if (status) {
+        filtered = filtered.filter(c => c.status === status);
     }
     
     displayCustomers(filtered);
@@ -226,7 +231,7 @@ function saveCustomer(e) {
 }
 
 async function deleteCustomer(id) {
-    if (!(await appConfirm('Are you sure you want to delete this customer?', {danger: true}))) {
+    if (!(await appConfirm('Archive this customer? Their past sales and account history will be kept.', {danger: true}))) {
         return;
     }
     

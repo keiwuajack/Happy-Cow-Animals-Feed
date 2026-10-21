@@ -5,6 +5,16 @@ let products = [];
 let customers = [];
 let editingQuoteId = null;
 
+function escapeHtml(value) {
+    return String(value ?? '').replace(/[&<>"']/g, character => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+    })[character]);
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     loadQuotations();
     loadCustomers();
@@ -16,9 +26,21 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('statusFilter').addEventListener('change', loadQuotations);
     document.getElementById('quoteDiscount').addEventListener('input', updateQuoteSummary);
     document.getElementById('productSearch').addEventListener('input', filterProductsForQuote);
+    document.getElementById('productDropdown').addEventListener('click', function(event) {
+        const option = event.target.closest('[data-product-id]');
+        if (option) addProductToQuote(option.dataset.productId);
+    });
     
     // Modal close
     document.querySelector('#quoteModal .close').addEventListener('click', closeQuoteModal);
+    document.getElementById('quoteModal').addEventListener('click', function(event) {
+        if (event.target === this) closeQuoteModal();
+    });
+    document.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape' && document.getElementById('quoteModal').classList.contains('show')) {
+            closeQuoteModal();
+        }
+    });
 });
 
 function loadQuotations() {
@@ -55,6 +77,9 @@ function displayQuotations(quotations) {
                 <button class="btn btn-sm" onclick="viewQuote(${quote.id})" title="View">
                     <i class="fas fa-eye"></i>
                 </button>
+                <button class="btn btn-sm" onclick="sendQuotationEmail(${quote.id})" title="Email quotation to customer">
+                    <i class="fas fa-envelope"></i>
+                </button>
                 ${quote.status === 'pending' ? `
                     <button class="btn btn-sm btn-primary" onclick="convertToSale(${quote.id})" title="Convert to Sale">
                         <i class="fas fa-shopping-cart"></i>
@@ -69,6 +94,30 @@ function displayQuotations(quotations) {
             </td>
         </tr>
     `).join('');
+}
+
+async function sendQuotationEmail(quotationId) {
+    const button = document.querySelector(`#quotationsTable button[onclick="sendQuotationEmail(${quotationId})"]`);
+    if (button) {
+        button.disabled = true;
+        button.innerHTML = '<i class="fas fa-spinner fa-spin" aria-hidden="true"></i>';
+    }
+    try {
+        const response = await fetch('api/send_quotation_email.php', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({quotation_id: quotationId})
+        });
+        const data = await response.json();
+        showAlert(data.message || (data.success ? 'Quotation emailed.' : 'Could not email quotation.'), data.success ? 'success' : 'error');
+    } catch (error) {
+        showAlert('Could not connect to the email service. Check the PC internet connection and SMTP settings.', 'error');
+    } finally {
+        if (button) {
+            button.disabled = false;
+            button.innerHTML = '<i class="fas fa-envelope"></i>';
+        }
+    }
 }
 
 function getStatusColor(status) {
@@ -135,44 +184,47 @@ function openQuoteModal() {
     
     updateQuoteItemsDisplay();
     updateQuoteSummary();
-    document.getElementById('quoteModal').classList.add('show');
+    const modal = document.getElementById('quoteModal');
+    modal.setAttribute('aria-hidden', 'false');
+    modal.classList.add('show');
+    document.getElementById('quoteCustomer').focus();
 }
 
 function closeQuoteModal() {
-    document.getElementById('quoteModal').classList.remove('show');
+    const modal = document.getElementById('quoteModal');
+    modal.classList.remove('show');
+    modal.setAttribute('aria-hidden', 'true');
+    document.getElementById('productDropdown').hidden = true;
 }
 
 function filterProductsForQuote() {
-    const search = document.getElementById('productSearch').value.toLowerCase();
-    if (search.length < 2) return;
+    const search = document.getElementById('productSearch').value.trim().toLowerCase();
+    const dropdown = document.getElementById('productDropdown');
+    if (search.length < 2) {
+        dropdown.hidden = true;
+        return;
+    }
     
     const filtered = products.filter(p => 
-        p.name.toLowerCase().includes(search) || 
-        (p.sku && p.sku.toLowerCase().includes(search))
+        String(p.name || '').toLowerCase().includes(search) ||
+        (p.sku && String(p.sku).toLowerCase().includes(search))
     );
     
-    // Show dropdown with filtered products
     showProductDropdown(filtered);
 }
 
-function showProductDropdown(products) {
-    let dropdown = document.getElementById('productDropdown');
-    if (!dropdown) {
-        dropdown = document.createElement('div');
-        dropdown.id = 'productDropdown';
-        dropdown.style.cssText = 'position: absolute; background: white; border: 1px solid #ddd; max-height: 200px; overflow-y: auto; width: 100%; z-index: 1000; border-radius: 5px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);';
-        document.getElementById('productSearch').parentNode.appendChild(dropdown);
-    }
-    
-    dropdown.innerHTML = products.map(p => `
-        <div style="padding: 10px; cursor: pointer; border-bottom: 1px solid #eee;" 
-             onmouseover="this.style.background='#f5f5f5'" 
-             onmouseout="this.style.background='white'"
-             onclick="addProductToQuote(${p.id})">
-            <strong>${p.name}</strong><br>
-            <small>Stock: ${p.quantity} | Price: KSh ${parseFloat(p.selling_price).toFixed(2)}</small>
-        </div>
-    `).join('');
+function showProductDropdown(matches) {
+    const dropdown = document.getElementById('productDropdown');
+    dropdown.innerHTML = matches.length ? matches.map(product => `
+        <button type="button" class="quote-product-option" role="option" data-product-id="${Number(product.id)}">
+            <span class="quote-product-option-main">
+                <span class="quote-product-option-name">${escapeHtml(product.name)}</span>
+                <span class="quote-product-option-meta">${product.sku ? `SKU ${escapeHtml(product.sku)} - ` : ''}Stock: ${Number(product.quantity) || 0}</span>
+            </span>
+            <span class="quote-product-option-price">KSh ${parseFloat(product.selling_price || 0).toFixed(2)}</span>
+        </button>
+    `).join('') : '<div class="quote-product-empty">No matching products found</div>';
+    dropdown.hidden = false;
 }
 
 function addProductToQuote(productId) {
@@ -197,36 +249,27 @@ function addProductToQuote(productId) {
     updateQuoteItemsDisplay();
     updateQuoteSummary();
     document.getElementById('productSearch').value = '';
-    document.getElementById('productDropdown').innerHTML = '';
+    document.getElementById('productDropdown').hidden = true;
+    document.getElementById('productSearch').focus();
 }
 
 function updateQuoteItemsDisplay() {
     const tbody = document.getElementById('quoteItems');
+    const itemCount = document.getElementById('quoteItemCount');
+    itemCount.textContent = `${quoteItems.length} ${quoteItems.length === 1 ? 'item' : 'items'}`;
     
     if (quoteItems.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center;">No items added</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5"><div class="quotation-empty-state"><span><i class="fas fa-box-open" aria-hidden="true"></i></span><strong>No products added yet</strong><small>Search for a product above to start this quotation.</small></div></td></tr>';
         return;
     }
     
     tbody.innerHTML = quoteItems.map((item, index) => `
         <tr>
-            <td>${item.product_name}</td>
-            <td>
-                <input type="number" value="${item.quantity}" min="1" 
-                       onchange="updateQuoteItemQuantity(${index}, this.value)"
-                       style="width: 80px; padding: 5px;">
-            </td>
-            <td>
-                <input type="number" value="${item.unit_price}" step="0.01" min="0"
-                       onchange="updateQuoteItemPrice(${index}, this.value)"
-                       style="width: 100px; padding: 5px;">
-            </td>
-            <td><strong>KSh ${item.total.toFixed(2)}</strong></td>
-            <td>
-                <button type="button" class="btn btn-sm" onclick="removeQuoteItem(${index})" style="background: #e74c3c; color: white;">
-                    <i class="fas fa-trash"></i>
-                </button>
-            </td>
+            <td>${escapeHtml(item.product_name)}</td>
+            <td><input class="quotation-item-input quantity-input" type="number" value="${item.quantity}" min="1" step="1" aria-label="Quantity for ${escapeHtml(item.product_name)}" onchange="updateQuoteItemQuantity(${index}, this.value)"></td>
+            <td><input class="quotation-item-input" type="number" value="${item.unit_price}" min="0" step="0.01" aria-label="Unit price for ${escapeHtml(item.product_name)}" onchange="updateQuoteItemPrice(${index}, this.value)"></td>
+            <td class="quotation-item-total">KSh ${Number(item.total).toFixed(2)}</td>
+            <td><button type="button" class="quotation-remove-item" onclick="removeQuoteItem(${index})" aria-label="Remove ${escapeHtml(item.product_name)}"><i class="fas fa-trash" aria-hidden="true"></i></button></td>
         </tr>
     `).join('');
 }
@@ -256,8 +299,8 @@ function updateQuoteSummary() {
     const discount = parseFloat(document.getElementById('quoteDiscount').value) || 0;
     const total = subtotal - discount;
     
-    document.getElementById('quoteSubtotal').value = 'KSh ' + subtotal.toFixed(2);
-    document.getElementById('quoteTotal').value = 'KSh ' + total.toFixed(2);
+    document.getElementById('quoteSubtotal').textContent = 'KSh ' + subtotal.toFixed(2);
+    document.getElementById('quoteTotal').textContent = 'KSh ' + total.toFixed(2);
 }
 
 function saveQuotation(e) {
@@ -265,6 +308,13 @@ function saveQuotation(e) {
     
     if (quoteItems.length === 0) {
         showAlert('Please add at least one item', 'error');
+        return;
+    }
+
+    const subtotal = quoteItems.reduce((sum, item) => sum + item.total, 0);
+    const discount = parseFloat(document.getElementById('quoteDiscount').value) || 0;
+    if (discount < 0 || discount > subtotal) {
+        showAlert('Discount cannot be greater than the quotation subtotal', 'error');
         return;
     }
     
@@ -276,6 +326,10 @@ function saveQuotation(e) {
         items: quoteItems
     };
     
+    const submitButton = document.querySelector('.quotation-save-button');
+    submitButton.disabled = true;
+    submitButton.innerHTML = '<i class="fas fa-spinner fa-spin" aria-hidden="true"></i> Saving...';
+
     fetch('api/create_quotation.php', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
@@ -295,6 +349,10 @@ function saveQuotation(e) {
     .catch(error => {
         console.error('Error:', error);
         showAlert('Error creating quotation', 'error');
+    })
+    .finally(() => {
+        submitButton.disabled = false;
+        submitButton.innerHTML = '<i class="fas fa-save" aria-hidden="true"></i> Save Quotation';
     });
 }
 

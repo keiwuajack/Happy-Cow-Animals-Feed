@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 session_start();
 require_once 'config/database.php';
 
@@ -14,8 +14,8 @@ if (!isset($_SESSION['user_id'])) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Products - Happy Cow Animal Feeds</title>
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
-    <link rel="stylesheet" href="assets/css/style.css?v=20261011-3">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="assets/css/style.css?v=20261021-1">
+    <link rel="stylesheet" href="assets/vendor/fontawesome/css/all.min.css">
 </head>
 <body>
     <div class="container">
@@ -39,9 +39,9 @@ if (!isset($_SESSION['user_id'])) {
                             <option value="">All Categories</option>
                         </select>
                         <select id="filterStatus" class="filter-select">
-                            <option value="">All Status</option>
-                            <option value="active">Active</option>
+                            <option value="active" selected>Active Products</option>
                             <option value="inactive">Inactive</option>
+                            <option value="">All Status</option>
                         </select>
                     </div>
                     
@@ -72,15 +72,23 @@ if (!isset($_SESSION['user_id'])) {
     
     <!-- Product Modal -->
     <div id="productModal" class="modal">
-        <div class="modal-content modal-large">
+        <div class="modal-content modal-large" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
             <div class="modal-header">
-                <h3 id="modalTitle">Add Product</h3>
-                <span class="close">&times;</span>
+                <div class="modal-heading">
+                    <span class="modal-eyebrow">Inventory</span>
+                    <h3 id="modalTitle">Add Product</h3>
+                    <p>Set product details, pricing, and stock levels.</p>
+                </div>
+                <button type="button" class="close" aria-label="Close dialog">&times;</button>
             </div>
             <form id="productForm">
                 <div class="modal-body">
                     <input type="hidden" id="productId">
                     
+                    <div class="modal-form-section modal-form-section-first">
+                        <h4>Product information</h4>
+                        <p>Identify the item and choose how it is tracked.</p>
+                    </div>
                     <div class="form-row">
                         <div class="form-group">
                             <label>Product Name *</label>
@@ -115,6 +123,10 @@ if (!isset($_SESSION['user_id'])) {
                         </div>
                     </div>
                     
+                    <div class="modal-form-section">
+                        <h4>Pricing and stock</h4>
+                        <p>Set the cost, selling price, and reorder point.</p>
+                    </div>
                     <div class="form-row">
                         <div class="form-group">
                             <label>Cost Price *</label>
@@ -137,6 +149,10 @@ if (!isset($_SESSION['user_id'])) {
                         </div>
                     </div>
                     
+                    <div class="modal-form-section">
+                        <h4>More details</h4>
+                        <p>Add optional description, expiry, and product photo.</p>
+                    </div>
                     <div class="form-group">
                         <label>Description</label>
                         <textarea id="productDescription" rows="3"></textarea>
@@ -175,8 +191,9 @@ if (!isset($_SESSION['user_id'])) {
         </div>
     </div>
     
-    <script src="assets/js/main.js?v=20261012-1"></script>
-    <script src="assets/js/products.js?v=20261012-2"></script>
+    <script>window.canArchiveRecords = <?php echo json_encode(in_array(strtolower((string) ($_SESSION['role'] ?? '')), ['admin', 'manager'], true)); ?>;</script>
+    <script src="assets/js/main.js?v=20261021-1"></script>
+    <script src="assets/js/products.js?v=20261020-1"></script>
 </body>
 </html>
 

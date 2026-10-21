@@ -9,66 +9,55 @@ if (!isset($_SESSION['user_id'])) {
     exit();
 }
 
-// Get today's sales
-$today = date('Y-m-d');
-$sql = "SELECT COALESCE(SUM(total), 0) as total FROM sales WHERE DATE(created_at) = '$today'";
-$result = query($sql);
-$todaySales = $result->fetch_assoc()['total'];
+$isCashier = strtolower((string) ($_SESSION['role'] ?? '')) === 'cashier';
+$canViewProducts = security_has_permission('products.lookup') || security_has_permission('products.manage');
+$canViewCustomers = security_has_permission('customers.lookup') || security_has_permission('customers.manage');
+$canViewInventory = security_has_permission('inventory.view') || security_has_permission('inventory.manage');
+$canViewCredit = security_has_permission('credit.manage');
+$stats = ['success' => true];
 
-// Get total products
-$sql = "SELECT COUNT(*) as total FROM products WHERE status = 'active'";
-$result = query($sql);
-$totalProducts = $result->fetch_assoc()['total'];
+// Cashiers see their own active shift totals from shift_status.php, not store-wide sales.
+if (!$isCashier && security_has_permission('sales.view')) {
+    $salesResult = query("SELECT COALESCE(SUM(total), 0) AS total FROM sales WHERE DATE(created_at) = CURDATE()");
+    $stats['todaySales'] = $salesResult ? $salesResult->fetch_assoc()['total'] : 0;
+}
 
-// Get total customers
-$sql = "SELECT COUNT(*) as total FROM customers WHERE status = 'active'";
-$result = query($sql);
-$totalCustomers = $result->fetch_assoc()['total'];
+if (!$isCashier && $canViewProducts) {
+    $productsResult = query("SELECT COUNT(*) AS total FROM products WHERE status = 'active'");
+    $stats['totalProducts'] = $productsResult ? $productsResult->fetch_assoc()['total'] : 0;
+}
 
-// Get low stock items
-$sql = "SELECT COUNT(*) as total FROM products WHERE quantity <= reorder_level AND status = 'active'";
-$result = query($sql);
-$lowStockItems = $result->fetch_assoc()['total'];
+if (!$isCashier && $canViewCustomers) {
+    $customersResult = query("SELECT COUNT(*) AS total FROM customers WHERE status = 'active'");
+    $stats['totalCustomers'] = $customersResult ? $customersResult->fetch_assoc()['total'] : 0;
+}
 
-$lowStockProducts = [];
-$lowStockResult = query("SELECT name, quantity, unit, reorder_level FROM products WHERE quantity <= reorder_level AND status = 'active' ORDER BY quantity ASC, name ASC LIMIT 6");
-if ($lowStockResult) {
-    while ($row = $lowStockResult->fetch_assoc()) {
-        $lowStockProducts[] = $row;
+if ($canViewInventory) {
+    $lowStockResult = query("SELECT COUNT(*) AS total FROM products WHERE quantity <= reorder_level AND status = 'active'");
+    $stats['lowStockItems'] = $lowStockResult ? $lowStockResult->fetch_assoc()['total'] : 0;
+    $stats['lowStockProducts'] = [];
+    $lowStockProducts = query("SELECT name, quantity, unit, reorder_level FROM products WHERE quantity <= reorder_level AND status = 'active' ORDER BY quantity ASC, name ASC LIMIT 6");
+    if ($lowStockProducts) {
+        while ($row = $lowStockProducts->fetch_assoc()) {
+            $stats['lowStockProducts'][] = $row;
+        }
+    }
+
+    $expiryResult = query("SELECT COUNT(*) AS total FROM products WHERE status = 'active' AND expiry_date IS NOT NULL AND expiry_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 30 DAY)");
+    $stats['expiringProducts'] = $expiryResult ? $expiryResult->fetch_assoc()['total'] : 0;
+    $stats['expiringProductList'] = [];
+    $expiringProducts = query("SELECT name, expiry_date, quantity, unit FROM products WHERE status = 'active' AND expiry_date IS NOT NULL AND expiry_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 30 DAY) ORDER BY expiry_date ASC LIMIT 6");
+    if ($expiringProducts) {
+        while ($row = $expiringProducts->fetch_assoc()) {
+            $stats['expiringProductList'][] = $row;
+        }
     }
 }
 
-// Get outstanding customer credit when the advanced customer fields are installed.
-$creditOutstanding = 0;
-$creditResult = query("SELECT COALESCE(SUM(credit_balance), 0) as total FROM customers WHERE status = 'active'");
-if ($creditResult) {
-    $creditOutstanding = $creditResult->fetch_assoc()['total'];
+if ($canViewCredit) {
+    $creditResult = query("SELECT COALESCE(SUM(credit_balance), 0) AS total FROM customers WHERE status = 'active'");
+    $stats['creditOutstanding'] = $creditResult ? $creditResult->fetch_assoc()['total'] : 0;
 }
 
-// Count products that expire in the next 30 days.
-$expiringProducts = 0;
-$expiryResult = query("SELECT COUNT(*) as total FROM products WHERE status = 'active' AND expiry_date IS NOT NULL AND expiry_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 30 DAY)");
-if ($expiryResult) {
-    $expiringProducts = $expiryResult->fetch_assoc()['total'];
-}
-
-$expiringProductList = [];
-$expiringListResult = query("SELECT name, expiry_date, quantity, unit FROM products WHERE status = 'active' AND expiry_date IS NOT NULL AND expiry_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 30 DAY) ORDER BY expiry_date ASC LIMIT 6");
-if ($expiringListResult) {
-    while ($row = $expiringListResult->fetch_assoc()) {
-        $expiringProductList[] = $row;
-    }
-}
-
-echo json_encode([
-    'success' => true,
-    'todaySales' => $todaySales,
-    'totalProducts' => $totalProducts,
-    'totalCustomers' => $totalCustomers,
-    'lowStockItems' => $lowStockItems,
-    'creditOutstanding' => $creditOutstanding,
-    'expiringProducts' => $expiringProducts,
-    'lowStockProducts' => $lowStockProducts,
-    'expiringProductList' => $expiringProductList
-]);
+echo json_encode($stats);
 ?>

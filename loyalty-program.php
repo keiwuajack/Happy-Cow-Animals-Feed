@@ -14,9 +14,10 @@ if (!isset($_SESSION['user_id'])) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Loyalty Program - Happy Cow Animal Feeds</title>
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
-    <link rel="stylesheet" href="assets/css/style.css?v=20261011-3">
-    <link rel="stylesheet" href="assets/css/mobile-responsive.css?v=20260903-2">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="assets/css/style.css?v=20261021-1">
+    <link rel="stylesheet" href="assets/css/settings.css?v=20261018-1">
+    <link rel="stylesheet" href="assets/css/mobile-responsive.css?v=20261018-1">
+    <link rel="stylesheet" href="assets/vendor/fontawesome/css/all.min.css">
 </head>
 <body>
     <button class="mobile-menu-toggle" onclick="toggleMobileMenu()" style="display:none;">
@@ -29,10 +30,11 @@ if (!isset($_SESSION['user_id'])) {
         
         <div class="main-content">
             <?php include 'includes/header.php'; ?>
-            
+            <main class="page-content settings-page">
             <div class="page-header">
-                <h1><i class="fas fa-gift"></i> Loyalty Program Management</h1>
+                <div><p class="settings-eyebrow">Customer rewards</p><h1><i class="fas fa-gift"></i> Loyalty Program Management</h1>
                 <p>Reward your customers and increase retention</p>
+                </div>
             </div>
             
             <!-- Stats Cards -->
@@ -204,6 +206,7 @@ if (!isset($_SESSION['user_id'])) {
                     </div>
                 </div>
             </div>
+            </main>
         </div>
     </div>
     
@@ -256,7 +259,7 @@ if (!isset($_SESSION['user_id'])) {
         </div>
     </div>
     
-    <script src="assets/js/main.js?v=20261012-1"></script>
+    <script src="assets/js/main.js?v=20261021-1"></script>
     <script>
         // Load data on page load
         document.addEventListener('DOMContentLoaded', function() {

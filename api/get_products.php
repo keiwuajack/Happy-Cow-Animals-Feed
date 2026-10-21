@@ -9,7 +9,8 @@ if (!isset($_SESSION['user_id'])) {
     exit();
 }
 
-$showAll = isset($_GET['all']) && $_GET['all'] == 1;
+$showAll = isset($_GET['all']) && $_GET['all'] == 1
+    && strtolower((string) ($_SESSION['role'] ?? '')) !== 'cashier';
 
 if ($showAll) {
     $sql = "SELECT p.*, c.name as category_name 

@@ -38,6 +38,7 @@ $sql = "CREATE TABLE IF NOT EXISTS users (
     email VARCHAR(100),
     phone VARCHAR(20),
     role ENUM('admin', 'cashier', 'manager') DEFAULT 'cashier',
+    permissions_json TEXT DEFAULT NULL,
     status ENUM('active', 'inactive') DEFAULT 'active',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
@@ -70,7 +71,10 @@ $sql = "CREATE TABLE IF NOT EXISTS products (
     name VARCHAR(200) NOT NULL,
     category_id INT,
     sku VARCHAR(50) UNIQUE,
+    barcode VARCHAR(50) UNIQUE,
     description TEXT,
+    expiry_date DATE NULL,
+    image VARCHAR(255) NULL,
     unit VARCHAR(50) DEFAULT 'pcs',
     cost_price DECIMAL(10,2) NOT NULL,
     selling_price DECIMAL(10,2) NOT NULL,

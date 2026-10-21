@@ -15,9 +15,10 @@ foreach ([
     'backup_frequency' => $frequency,
     'keep_backups' => (string) $keep
 ] as $key => $value) {
-    $safeKey = sanitize($key);
-    $safeValue = sanitize($value);
-    query("INSERT INTO settings (setting_key, setting_value) VALUES ('$safeKey', '$safeValue') ON DUPLICATE KEY UPDATE setting_value = '$safeValue'");
+    $stmt = $conn->prepare("INSERT INTO settings (setting_key, setting_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)");
+    $stmt->bind_param('ss', $key, $value);
+    $stmt->execute();
+    $stmt->close();
 }
 echo json_encode(['success' => true, 'message' => 'Automatic backup settings saved']);
 ?>

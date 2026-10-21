@@ -9,7 +9,7 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
     exit();
 }
 
-$sql = "SELECT id, username, full_name, email, phone, role, status, created_at FROM users ORDER BY created_at DESC";
+$sql = "SELECT id, username, full_name, email, phone, role, status, permissions_json, created_at FROM users ORDER BY created_at DESC";
 $result = query($sql);
 $users = [];
 

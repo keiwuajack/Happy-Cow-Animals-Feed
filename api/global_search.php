@@ -20,6 +20,7 @@ if (strlen($query) < 2) {
 }
 
 $searchTerm = "%{$query}%";
+$isCashier = strtolower((string) ($_SESSION['role'] ?? '')) === 'cashier';
 $results = [
     'products' => [],
     'customers' => [],
@@ -31,7 +32,7 @@ try {
     $stmt = $pdo->prepare("
         SELECT id, name, quantity as stock, selling_price as price, sku
         FROM products 
-        WHERE name LIKE ? OR sku LIKE ? OR barcode LIKE ?
+        WHERE status = 'active' AND (name LIKE ? OR sku LIKE ? OR barcode LIKE ?)
         ORDER BY name ASC 
         LIMIT 5
     ");
@@ -42,7 +43,7 @@ try {
     $stmt = $pdo->prepare("
         SELECT id, name, phone, email
         FROM customers 
-        WHERE name LIKE ? OR phone LIKE ? OR email LIKE ?
+        WHERE status = 'active' AND (name LIKE ? OR phone LIKE ? OR email LIKE ?)
         ORDER BY name ASC 
         LIMIT 5
     ");
@@ -54,7 +55,8 @@ try {
         SELECT s.id, s.invoice_number, s.total as grand_total, s.created_at, c.name as customer_name
         FROM sales s
         LEFT JOIN customers c ON s.customer_id = c.id
-        WHERE s.invoice_number LIKE ? OR c.name LIKE ?
+        WHERE (s.invoice_number LIKE ? OR c.name LIKE ?)
+        " . ($isCashier ? 'AND s.user_id = ' . (int) $_SESSION['user_id'] : '') . "
         ORDER BY s.created_at DESC 
         LIMIT 5
     ");

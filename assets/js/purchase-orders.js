@@ -38,11 +38,14 @@ function openPo() { document.getElementById('poForm').reset(); document.getEleme
 function closePo() { document.getElementById('poModal').classList.remove('show'); }
 function addPoItem() {
     const row = document.createElement('tr');
-    row.innerHTML = `<td><select class="po-product" required><option value="">Select product</option>${poProducts.map(p => `<option value="${p.id}" data-cost="${p.cost_price}">${escapeHtml(p.name)} (${escapeHtml(p.sku || 'no SKU')})</option>`).join('')}</select></td><td><input class="po-qty" type="number" min="1" value="1" required></td><td><input class="po-cost" type="number" min="0" step="0.01" value="0" required></td><td><button type="button" class="btn-icon text-danger" title="Remove" onclick="this.closest('tr').remove(); updatePoTotal()"><i class="fas fa-trash"></i></button></td>`;
+    row.className = 'po-item-row';
+    row.innerHTML = `<td data-label="Product"><select class="po-control po-product" required aria-label="Product"><option value="">Choose a product</option>${poProducts.map(p => `<option value="${p.id}" data-cost="${Number(p.cost_price || 0)}">${escapeHtml(p.name)} (${escapeHtml(p.sku || 'no SKU')})</option>`).join('')}</select></td><td data-label="Quantity"><input class="po-control po-qty" type="number" min="1" value="1" required aria-label="Quantity"></td><td data-label="Unit cost"><input class="po-control po-cost" type="number" min="0" step="0.01" value="0" required aria-label="Unit cost in Kenya shillings"></td><td class="po-remove-cell" data-label="Remove"><button type="button" class="po-remove-button" title="Remove product" aria-label="Remove product"><i class="fas fa-trash" aria-hidden="true"></i></button></td>`;
     const product = row.querySelector('.po-product');
     product.onchange = () => { row.querySelector('.po-cost').value = product.selectedOptions[0]?.dataset.cost || 0; updatePoTotal(); };
     row.querySelector('.po-qty').oninput = updatePoTotal; row.querySelector('.po-cost').oninput = updatePoTotal;
+    row.querySelector('.po-remove-button').addEventListener('click', () => { row.remove(); updatePoTotal(); });
     document.getElementById('poItems').appendChild(row);
+    updatePoTotal();
 }
 function updatePoTotal() { let total = 0; document.querySelectorAll('#poItems tr').forEach(row => total += Number(row.querySelector('.po-qty').value) * Number(row.querySelector('.po-cost').value)); document.getElementById('poTotal').textContent = total.toFixed(2); }
 function savePurchaseOrder(event) {

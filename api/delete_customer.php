@@ -5,20 +5,54 @@ require_once '../config/database.php';
 header('Content-Type: application/json');
 
 if (!isset($_SESSION['user_id'])) {
-    echo json_encode(['success' => false, 'message' => 'Unauthorized']);
+    http_response_code(401);
+    echo json_encode(['success' => false, 'message' => 'Please sign in again']);
     exit();
 }
 security_require_same_origin();
 security_require_roles(['admin', 'manager']);
 
 $data = json_decode(file_get_contents('php://input'), true);
-$id = intval($data['id']);
-
-$sql = "UPDATE customers SET status = 'inactive' WHERE id = $id";
-
-if (query($sql)) {
-    echo json_encode(['success' => true, 'message' => 'Customer deleted successfully']);
-} else {
-    echo json_encode(['success' => false, 'message' => 'Error deleting customer']);
+$id = filter_var($data['id'] ?? null, FILTER_VALIDATE_INT);
+if (!$id || $id < 1) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'message' => 'Invalid customer']);
+    exit();
 }
+
+$stmt = $conn->prepare("UPDATE customers SET status = 'inactive' WHERE id = ? AND status <> 'inactive'");
+if (!$stmt) {
+    http_response_code(500);
+    echo json_encode(['success' => false, 'message' => 'Could not archive customer']);
+    exit();
+}
+$stmt->bind_param('i', $id);
+$success = $stmt->execute();
+$changed = $stmt->affected_rows;
+$stmt->close();
+
+if (!$success) {
+    http_response_code(500);
+    echo json_encode(['success' => false, 'message' => 'Could not archive customer']);
+    exit();
+}
+
+if ($changed > 0) {
+    echo json_encode(['success' => true, 'message' => 'Customer archived. Sales and account history were kept.']);
+    exit();
+}
+
+$check = $conn->prepare('SELECT status FROM customers WHERE id = ?');
+$check->bind_param('i', $id);
+$check->execute();
+$existing = $check->get_result()->fetch_assoc();
+$check->close();
+
+if (!$existing) {
+    http_response_code(404);
+    echo json_encode(['success' => false, 'message' => 'Customer not found']);
+    exit();
+}
+
+echo json_encode(['success' => true, 'message' => 'Customer is already archived']);
 ?>

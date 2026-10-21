@@ -11,13 +11,13 @@ if (!isset($_SESSION['user_id'])) {
 
 $input = json_decode(file_get_contents('php://input'), true);
 
-$customer_id = $input['customer_id'] ?? null;
+$customer_id = isset($input['customer_id']) ? intval($input['customer_id']) : 0;
 $amount = floatval($input['amount'] ?? 0);
-$payment_method = $input['payment_method'] ?? 'cash';
+$payment_method = isset($input['payment_method']) ? strtolower((string) $input['payment_method']) : 'cash';
 $reference_number = $input['reference_number'] ?? null;
 $notes = $input['notes'] ?? null;
 
-if (!$customer_id || $amount <= 0) {
+if ($customer_id <= 0 || $amount <= 0) {
     echo json_encode(['success' => false, 'message' => 'Invalid payment data']);
     exit;
 }
@@ -25,10 +25,12 @@ if (!$customer_id || $amount <= 0) {
 try {
     $conn->begin_transaction();
     
-    // Get customer current balance
-    $customer_id_safe = sanitize($customer_id);
-    $result = query("SELECT credit_balance FROM customers WHERE id = $customer_id_safe");
-    $customer = $result->fetch_assoc();
+    $customerStmt = $conn->prepare("SELECT credit_balance FROM customers WHERE id = ?");
+    $customerStmt->bind_param('i', $customer_id);
+    $customerStmt->execute();
+    $customerResult = $customerStmt->get_result();
+    $customer = $customerResult ? $customerResult->fetch_assoc() : null;
+    $customerStmt->close();
     
     if (!$customer) {
         throw new Exception('Customer not found');
@@ -38,24 +40,26 @@ try {
         throw new Exception('Payment amount exceeds outstanding balance');
     }
     
-    // Record payment
-    $amount_safe = sanitize($amount);
-    $method_safe = sanitize($payment_method);
-    $ref_safe = sanitize($reference_number);
-    $notes_safe = sanitize($notes);
     $user_id = $_SESSION['user_id'];
+    $paymentStmt = $conn->prepare("INSERT INTO credit_payments (customer_id, amount, payment_method, reference_number, notes, recorded_by, payment_date) VALUES (?, ?, ?, ?, ?, ?, NOW())");
+    $refValue = is_string($reference_number) ? $reference_number : null;
+    $notesValue = is_string($notes) ? $notes : null;
+    $paymentStmt->bind_param('idsssi', $customer_id, $amount, $payment_method, $refValue, $notesValue, $user_id);
+    $paymentStmt->execute();
+    $paymentStmt->close();
     
-    query("INSERT INTO credit_payments (customer_id, amount, payment_method, reference_number, notes, recorded_by, payment_date) 
-           VALUES ($customer_id_safe, $amount_safe, '$method_safe', '$ref_safe', '$notes_safe', $user_id, NOW())");
-    
-    // Update customer balance
     $new_balance = $customer['credit_balance'] - $amount;
-    query("UPDATE customers SET credit_balance = $new_balance WHERE id = $customer_id_safe");
+    $updateStmt = $conn->prepare("UPDATE customers SET credit_balance = ? WHERE id = ?");
+    $updateStmt->bind_param('di', $new_balance, $customer_id);
+    $updateStmt->execute();
+    $updateStmt->close();
     
-    // Log activity
-    $ip = $_SERVER['REMOTE_ADDR'];
-    query("INSERT INTO activity_log (user_id, action, module, description, ip_address) 
-           VALUES ($user_id, 'Credit Payment', 'Credit Sales', 'Recorded credit payment of KSh $amount for customer ID: $customer_id', '$ip')");
+    $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+    $activityDescription = 'Recorded credit payment of KSh ' . number_format($amount, 2) . ' for customer ID: ' . (string) $customer_id;
+    $activityStmt = $conn->prepare("INSERT INTO activity_log (user_id, action, module, description, ip_address) VALUES (?, 'Credit Payment', 'Credit Sales', ?, ?)");
+    $activityStmt->bind_param('iss', $user_id, $activityDescription, $ip);
+    $activityStmt->execute();
+    $activityStmt->close();
     
     $conn->commit();
     

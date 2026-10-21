@@ -67,8 +67,8 @@ try {
     
     // Log activity
     $stmt = $pdo->prepare("
-        INSERT INTO activity_log (user_id, action, description)
-        VALUES (?, 'quotation_created', ?)
+        INSERT INTO activity_log (user_id, action, module, description)
+        VALUES (?, 'quotation_created', 'Quotations', ?)
     ");
     $stmt->execute([
         $_SESSION['user_id'],

@@ -14,9 +14,9 @@ if (!isset($_SESSION['user_id'])) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Reports - Happy Cow Animal Feeds</title>
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
-    <link rel="stylesheet" href="assets/css/style.css?v=20261011-3">
-    <link rel="stylesheet" href="assets/css/reports.css?v=20261011-6">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="assets/css/style.css?v=20261021-1">
+    <link rel="stylesheet" href="assets/css/reports.css?v=20261020-1">
+    <link rel="stylesheet" href="assets/vendor/fontawesome/css/all.min.css">
 </head>
 <body>
     <div class="container">
@@ -39,6 +39,7 @@ if (!isset($_SESSION['user_id'])) {
                 <div class="rpt-toolbar">
                     <div class="rpt-tabs" role="tablist">
                         <button class="tab-btn active" data-tab="sales"><i class="fas fa-chart-line"></i> Sales</button>
+                        <button class="tab-btn" data-tab="daily-takings"><i class="fas fa-money-bill-transfer"></i> Daily Takings</button>
                         <button class="tab-btn" data-tab="best-sellers"><i class="fas fa-trophy"></i> Best Sellers</button>
                         <button class="tab-btn" data-tab="slow-moving"><i class="fas fa-hourglass-half"></i> Slow Moving</button>
                         <button class="tab-btn" data-tab="profit-loss"><i class="fas fa-coins"></i> Profit &amp; Loss</button>
@@ -89,6 +90,34 @@ if (!isset($_SESSION['user_id'])) {
                                     <tbody>
                                         <tr><td colspan="10" class="rpt-empty">Loading report...</td></tr>
                                     </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="report-tab" id="daily-takings-tab">
+                        <div class="rpt-daily-takings-intro">
+                            <h2><i class="fas fa-cash-register"></i> Daily Payment Summary</h2>
+                            <p>Money received from sales and credit payments, grouped by the day it was collected.</p>
+                        </div>
+                        <div id="dailyTakingsSummary" class="rpt-stats"></div>
+                        <div class="rpt-card">
+                            <div class="rpt-card-head">
+                                <h3><i class="fas fa-table-list"></i> Takings by payment method</h3>
+                                <p class="rpt-takings-note">Credit sale amounts with no tender method are listed as Credit / unassigned.</p>
+                            </div>
+                            <div class="table-responsive">
+                                <table id="dailyTakingsTable" class="rpt-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Date</th><th class="num">Cash</th><th class="num">M-Pesa / Till</th>
+                                            <th class="num">Card / bank</th><th class="num">Credit / unassigned</th><th class="num">Total received</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody><tr><td colspan="6" class="rpt-empty">Loading daily takings...</td></tr></tbody>
+                                    <tfoot>
+                                        <tr><th>Total for period</th><th class="num">KSh 0.00</th><th class="num">KSh 0.00</th><th class="num">KSh 0.00</th><th class="num">KSh 0.00</th><th class="num">KSh 0.00</th></tr>
+                                    </tfoot>
                                 </table>
                             </div>
                         </div>
@@ -159,8 +188,8 @@ if (!isset($_SESSION['user_id'])) {
         </div>
     </div>
 
-    <script src="assets/js/main.js?v=20261012-1"></script>
-    <script src="assets/js/reports.js?v=20261011-5"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="assets/js/main.js?v=20261021-1"></script>
+    <script src="assets/js/reports.js?v=20261021-1"></script>
+    <script src="assets/vendor/html2pdf/html2pdf.bundle.min.js"></script>
 </body>
 </html>

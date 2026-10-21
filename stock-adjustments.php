@@ -14,8 +14,8 @@ if (!isset($_SESSION['user_id'])) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Stock Adjustments - Happy Cow Animal Feeds</title>
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
-    <link rel="stylesheet" href="assets/css/style.css?v=20261011-3">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="assets/css/style.css?v=20261021-1">
+    <link rel="stylesheet" href="assets/vendor/fontawesome/css/all.min.css">
 </head>
 <body>
     <div class="container">
@@ -71,10 +71,14 @@ if (!isset($_SESSION['user_id'])) {
     
     <!-- Adjustment Modal -->
     <div class="modal" id="adjustmentModal">
-        <div class="modal-content">
+        <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
             <div class="modal-header">
-                <h2 id="modalTitle">Stock Adjustment</h2>
-                <span class="close">&times;</span>
+                <div class="modal-heading">
+                    <span class="modal-eyebrow">Inventory control</span>
+                    <h2 id="modalTitle">Stock Adjustment</h2>
+                    <p>Update product stock and document the reason.</p>
+                </div>
+                <button type="button" class="close" aria-label="Close dialog">&times;</button>
             </div>
             <form id="adjustmentForm">
                 <div class="modal-body">
@@ -125,7 +129,7 @@ if (!isset($_SESSION['user_id'])) {
         </div>
     </div>
     
-    <script src="assets/js/main.js?v=20261012-1"></script>
-    <script src="assets/js/stock-adjustments.js?v=20261011-2"></script>
+    <script src="assets/js/main.js?v=20261021-1"></script>
+    <script src="assets/js/stock-adjustments.js?v=20261020-1"></script>
 </body>
 </html>

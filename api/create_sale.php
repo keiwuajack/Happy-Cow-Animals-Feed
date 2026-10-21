@@ -31,13 +31,38 @@ $customer_id = !empty($data['customer_id']) ? intval($data['customer_id']) : 'NU
 $user_id = $_SESSION['user_id'];
 $discount = max(0, floatval($data['discount'] ?? 0));
 $amount_paid = max(0, floatval($data['amount_paid'] ?? 0));
-$payment_details = isset($data['payment_details']) ? sanitize($data['payment_details']) : 'NULL';
+$payment_details = null;
+if (array_key_exists('payment_details', $data) && $data['payment_details'] !== null && $data['payment_details'] !== '') {
+    $paymentDetailsInput = $data['payment_details'];
+    if (is_string($paymentDetailsInput)) {
+        $paymentDetailsInput = json_decode($paymentDetailsInput, true);
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            echo json_encode(['success' => false, 'message' => 'Invalid payment details']);
+            exit();
+        }
+    }
+
+    if (!is_array($paymentDetailsInput)) {
+        echo json_encode(['success' => false, 'message' => 'Invalid payment details']);
+        exit();
+    }
+
+    $payment_details = json_encode($paymentDetailsInput, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    if ($payment_details === false) {
+        echo json_encode(['success' => false, 'message' => 'Invalid payment details']);
+        exit();
+    }
+}
 $notes = sanitize($data['notes'] ?? '');
 
 // Cashier sales must belong to an open shift when shift management is installed.
 $shiftTable = query("SHOW TABLES LIKE 'cashier_shifts'");
 if ($shiftTable && $shiftTable->num_rows > 0) {
-    $openShift = query("SELECT id FROM cashier_shifts WHERE user_id = $user_id AND status = 'open' LIMIT 1");
+    $openShiftStmt = $conn->prepare("SELECT id FROM cashier_shifts WHERE user_id = ? AND status = 'open' LIMIT 1");
+    $openShiftStmt->bind_param('i', $user_id);
+    $openShiftStmt->execute();
+    $openShift = $openShiftStmt->get_result();
+    $openShiftStmt->close();
     if (!$openShift || !$openShift->fetch_assoc()) {
         echo json_encode([
             'success' => false,
@@ -62,8 +87,12 @@ try {
             throw new Exception('Invalid product or quantity');
         }
 
-        $productResult = query("SELECT id, name, selling_price, quantity, status FROM products WHERE id = $product_id FOR UPDATE");
+        $productStmt = $conn->prepare("SELECT id, name, selling_price, quantity, status FROM products WHERE id = ? FOR UPDATE");
+        $productStmt->bind_param('i', $product_id);
+        $productStmt->execute();
+        $productResult = $productStmt->get_result();
         $product = $productResult ? $productResult->fetch_assoc() : null;
+        $productStmt->close();
         if (!$product || $product['status'] !== 'active') {
             throw new Exception('Product is unavailable');
         }
@@ -77,7 +106,10 @@ try {
         $batchAllocations = [];
         $batchTable = query("SHOW TABLES LIKE 'product_batches'");
         if ($batchTable && $batchTable->num_rows > 0) {
-            $batchResult = query("SELECT id, quantity, expiry_date FROM product_batches WHERE product_id = $product_id AND quantity > 0 ORDER BY expiry_date IS NULL, expiry_date ASC, id ASC FOR UPDATE");
+            $batchStmt = $conn->prepare("SELECT id, quantity, expiry_date FROM product_batches WHERE product_id = ? AND quantity > 0 ORDER BY expiry_date IS NULL, expiry_date ASC, id ASC FOR UPDATE");
+            $batchStmt->bind_param('i', $product_id);
+            $batchStmt->execute();
+            $batchResult = $batchStmt->get_result();
             $remaining = $quantity;
             while ($batchResult && $batch = $batchResult->fetch_assoc()) {
                 if ($remaining <= 0) break;
@@ -85,6 +117,7 @@ try {
                 $batchAllocations[] = ['id' => (int) $batch['id'], 'quantity' => $allocated];
                 $remaining -= $allocated;
             }
+            $batchStmt->close();
             if ($remaining > 0 && count($batchAllocations) > 0) {
                 throw new Exception('Insufficient quantity in configured batches for ' . $product['name']);
             }
@@ -112,22 +145,29 @@ try {
     $payment_status = ($amount_paid >= $total) ? 'paid' : (($amount_paid > 0) ? 'partial' : 'unpaid');
 
     // Insert sale
-    $payment_details_clause = $payment_details !== 'NULL' ? "'$payment_details'" : "NULL";
-    $sql = "INSERT INTO sales (invoice_number, customer_id, user_id, subtotal, discount, tax, total, amount_paid, payment_method, payment_details, payment_status, notes) 
-            VALUES ('$invoice_number', $customer_id, $user_id, $subtotal, $discount, $tax, $total, $amount_paid, '$payment_method', $payment_details_clause, '$payment_status', '$notes')";
-    
-    if (!query($sql)) {
+    $customer_id_value = ($customer_id === 'NULL' || $customer_id === null || (int) $customer_id === 0) ? null : (int) $customer_id;
+    $saleInsertStmt = $conn->prepare("INSERT INTO sales (invoice_number, customer_id, user_id, subtotal, discount, tax, total, amount_paid, payment_method, payment_details, payment_status, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+    $saleInsertStmt->bind_param('siidddddssss', $invoice_number, $customer_id_value, $user_id, $subtotal, $discount, $tax, $total, $amount_paid, $payment_method, $payment_details, $payment_status, $notes);
+    if (!$saleInsertStmt->execute()) {
+        $saleInsertStmt->close();
         throw new Exception('Error creating sale');
     }
-    
     $sale_id = $conn->insert_id;
+    $saleInsertStmt->close();
 
     // Link the sale to the cashier's open shift when the advanced schema is installed.
     $shiftColumn = query("SHOW COLUMNS FROM sales LIKE 'shift_id'");
     if ($shiftColumn && $shiftColumn->num_rows > 0) {
-        $openShift = query("SELECT id FROM cashier_shifts WHERE user_id = $user_id AND status = 'open' ORDER BY id DESC LIMIT 1");
+        $openShiftStmt = $conn->prepare("SELECT id FROM cashier_shifts WHERE user_id = ? AND status = 'open' ORDER BY id DESC LIMIT 1");
+        $openShiftStmt->bind_param('i', $user_id);
+        $openShiftStmt->execute();
+        $openShift = $openShiftStmt->get_result();
+        $openShiftStmt->close();
         if ($openShift && ($shift = $openShift->fetch_assoc())) {
-            query("UPDATE sales SET shift_id = {$shift['id']} WHERE id = $sale_id");
+            $shiftUpdateStmt = $conn->prepare("UPDATE sales SET shift_id = ? WHERE id = ?");
+            $shiftUpdateStmt->bind_param('ii', $shift['id'], $sale_id);
+            $shiftUpdateStmt->execute();
+            $shiftUpdateStmt->close();
         }
     }
     
@@ -140,66 +180,85 @@ try {
         $item_subtotal = $item['subtotal'];
         
         // Insert sale item
-        $cost_row = query("SELECT cost_price FROM products WHERE id = $product_id")->fetch_assoc();
-        $cost_price = (float) ($cost_row['cost_price'] ?? 0);
-        $sql = "INSERT INTO sale_items (sale_id, product_id, product_name, quantity, unit_price, cost_price, subtotal) 
-                VALUES ($sale_id, $product_id, '$product_name', $quantity, $unit_price, $cost_price, $item_subtotal)";
-        
-        if (!query($sql)) {
+        $costStmt = $conn->prepare("SELECT cost_price FROM products WHERE id = ?");
+        $costStmt->bind_param('i', $product_id);
+        $costStmt->execute();
+        $costRow = $costStmt->get_result()->fetch_assoc();
+        $costStmt->close();
+        $cost_price = (float) ($costRow['cost_price'] ?? 0);
+        $saleItemStmt = $conn->prepare("INSERT INTO sale_items (sale_id, product_id, product_name, quantity, unit_price, cost_price, subtotal) VALUES (?, ?, ?, ?, ?, ?, ?)");
+        $saleItemStmt->bind_param('iisiddd', $sale_id, $product_id, $product_name, $quantity, $unit_price, $cost_price, $item_subtotal);
+        if (!$saleItemStmt->execute()) {
+            $saleItemStmt->close();
             throw new Exception('Error adding sale item');
         }
-
         $sale_item_id = $conn->insert_id;
+        $saleItemStmt->close();
+
         if (!empty($item['batch_allocations'])) {
             foreach ($item['batch_allocations'] as $allocation) {
                 $batch_id = (int) $allocation['id'];
                 $batch_quantity = (int) $allocation['quantity'];
-                if (!query("UPDATE product_batches SET quantity = quantity - $batch_quantity WHERE id = $batch_id AND quantity >= $batch_quantity")) {
+                $batchUpdateStmt = $conn->prepare("UPDATE product_batches SET quantity = quantity - ? WHERE id = ? AND quantity >= ?");
+                $batchUpdateStmt->bind_param('iii', $batch_quantity, $batch_id, $batch_quantity);
+                if (!$batchUpdateStmt->execute() || $batchUpdateStmt->affected_rows === 0) {
+                    $batchUpdateStmt->close();
                     throw new Exception('Error updating product batch');
                 }
-                if (!query("INSERT INTO sale_item_batches (sale_item_id, batch_id, quantity) VALUES ($sale_item_id, $batch_id, $batch_quantity)")) {
+                $batchUpdateStmt->close();
+
+                $saleItemBatchStmt = $conn->prepare("INSERT INTO sale_item_batches (sale_item_id, batch_id, quantity) VALUES (?, ?, ?)");
+                $saleItemBatchStmt->bind_param('iii', $sale_item_id, $batch_id, $batch_quantity);
+                if (!$saleItemBatchStmt->execute()) {
+                    $saleItemBatchStmt->close();
                     throw new Exception('Error recording product batch allocation');
                 }
+                $saleItemBatchStmt->close();
             }
         }
         
         // Update product quantity
-        $sql = "UPDATE products SET quantity = quantity - $quantity WHERE id = $product_id";
-        
-        if (!query($sql)) {
+        $productQtyStmt = $conn->prepare("UPDATE products SET quantity = quantity - ? WHERE id = ?");
+        $productQtyStmt->bind_param('ii', $quantity, $product_id);
+        if (!$productQtyStmt->execute()) {
+            $productQtyStmt->close();
             throw new Exception('Error updating product quantity');
         }
+        $productQtyStmt->close();
     }
     
     // Award loyalty points if customer is selected
     $points_earned = 0;
-    if ($customer_id !== 'NULL' && $payment_status === 'paid') {
-        // Get loyalty settings
-        $settings_sql = "SELECT points_per_amount FROM loyalty_settings WHERE enabled = 1 LIMIT 1";
-        $settings_result = query($settings_sql);
-        
-        if ($settings_result && $settings_result->num_rows > 0) {
-            $settings = $settings_result->fetch_assoc();
+    if ($customer_id_value !== null && $payment_status === 'paid') {
+        $settingsStmt = $conn->prepare("SELECT points_per_amount FROM loyalty_settings WHERE enabled = 1 LIMIT 1");
+        $settingsStmt->execute();
+        $settingsResult = $settingsStmt->get_result();
+        $settingsStmt->close();
+
+        if ($settingsResult && $settingsResult->num_rows > 0) {
+            $settings = $settingsResult->fetch_assoc();
             $points_per_amount = max(1, intval($settings['points_per_amount']));
-            
-            // Calculate points (1 point per X amount)
-            $points_earned = floor($total / $points_per_amount);
-            
+
+            $points_earned = (int) floor($total / $points_per_amount);
+
             if ($points_earned > 0) {
-                // Update customer points
-                $sql = "UPDATE customers SET loyalty_points = loyalty_points + $points_earned WHERE id = $customer_id";
-                query($sql);
-                
-                // Get new balance
-                $balance_sql = "SELECT loyalty_points FROM customers WHERE id = $customer_id";
-                $balance_result = query($balance_sql);
-                $new_balance = $balance_result->fetch_assoc()['loyalty_points'];
-                
-                // Record points history
-                $description = "Points earned from sale $invoice_number";
-                $sql = "INSERT INTO customer_points_history (customer_id, type, points, description, balance_after, sale_id) 
-                        VALUES ($customer_id, 'earned', $points_earned, '$description', $new_balance, $sale_id)";
-                query($sql);
+                $pointsUpdateStmt = $conn->prepare("UPDATE customers SET loyalty_points = loyalty_points + ? WHERE id = ?");
+                $pointsUpdateStmt->bind_param('ii', $points_earned, $customer_id_value);
+                $pointsUpdateStmt->execute();
+                $pointsUpdateStmt->close();
+
+                $balanceStmt = $conn->prepare("SELECT loyalty_points FROM customers WHERE id = ?");
+                $balanceStmt->bind_param('i', $customer_id_value);
+                $balanceStmt->execute();
+                $balanceResult = $balanceStmt->get_result();
+                $new_balance = $balanceResult && $balanceResult->num_rows > 0 ? $balanceResult->fetch_assoc()['loyalty_points'] : 0;
+                $balanceStmt->close();
+
+                $description = 'Points earned from sale ' . $invoice_number;
+                $historyStmt = $conn->prepare("INSERT INTO customer_points_history (customer_id, type, points, description, balance_after, sale_id) VALUES (?, 'earned', ?, ?, ?, ?)");
+                $historyStmt->bind_param('iisii', $customer_id_value, $points_earned, $description, $new_balance, $sale_id);
+                $historyStmt->execute();
+                $historyStmt->close();
             }
         }
     }

@@ -9,13 +9,25 @@ if (!isset($_SESSION['user_id'])) {
     exit();
 }
 
-$sql = "SELECT s.*, c.name as customer_name 
-        FROM sales s 
-        LEFT JOIN customers c ON s.customer_id = c.id 
-        ORDER BY s.created_at DESC 
-        LIMIT 10";
+$isCashier = strtolower((string) ($_SESSION['role'] ?? '')) === 'cashier';
+$sql = "SELECT s.*, c.name AS customer_name
+        FROM sales s
+        LEFT JOIN customers c ON s.customer_id = c.id";
 
-$result = query($sql);
+if ($isCashier) {
+    $sql .= " WHERE s.user_id = ?";
+}
+$sql .= " ORDER BY s.created_at DESC LIMIT 10";
+
+if ($isCashier) {
+    $stmt = $conn->prepare($sql);
+    $cashierId = (int) $_SESSION['user_id'];
+    $stmt->bind_param('i', $cashierId);
+    $stmt->execute();
+    $result = $stmt->get_result();
+} else {
+    $result = query($sql);
+}
 $transactions = [];
 
 while ($row = $result->fetch_assoc()) {

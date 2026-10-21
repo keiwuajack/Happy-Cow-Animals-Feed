@@ -17,7 +17,12 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('categoryFilter').addEventListener('change', filterProducts);
     document.getElementById('clearCart').addEventListener('click', clearCart);
     document.getElementById('checkoutBtn').addEventListener('click', openPaymentModal);
-    document.getElementById('discount').addEventListener('input', updateCartSummary);
+    document.getElementById('discount').addEventListener('input', function() {
+        syncDiscountInputs(this);
+    });
+    document.getElementById('checkoutDiscount').addEventListener('input', function() {
+        syncDiscountInputs(this);
+    });
     document.getElementById('addCustomerBtn').addEventListener('click', () => {
         window.location.href = 'customers.php?action=add&return=pos';
     });
@@ -124,22 +129,78 @@ function loadCustomers() {
 function displayProducts(productsToDisplay) {
     const grid = document.getElementById('productsGrid');
     grid.innerHTML = '';
-    
-    productsToDisplay.forEach(product => {
+
+    const visibleProducts = Array.isArray(productsToDisplay) ? productsToDisplay : [];
+    const count = document.getElementById('catalogCount');
+    if (count) {
+        count.textContent = `${visibleProducts.length} ${visibleProducts.length === 1 ? 'product' : 'products'}`;
+    }
+
+    if (visibleProducts.length === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'products-empty';
+        empty.innerHTML = '<i class="fas fa-box-open" aria-hidden="true"></i><strong>No products found</strong><span>Try another search or category.</span>';
+        grid.appendChild(empty);
+        return;
+    }
+
+    visibleProducts.forEach(product => {
         const isLowStock = product.quantity <= product.reorder_level;
-        const card = document.createElement('div');
+        const card = document.createElement('button');
+        card.type = 'button';
         card.className = 'product-card';
-        card.onclick = () => addToCart(product);
-        card.innerHTML = `
-            <div class="product-icon">
-                ${product.image ? `<img class="product-photo" src="${encodeURI(product.image)}" alt="">` : '<i class="fas fa-seedling"></i>'}
-            </div>
-            <div class="product-name">${product.name}</div>
-            <div class="product-price">${formatCurrency(product.selling_price)}</div>
-            <div class="product-stock ${isLowStock ? 'low' : ''}">
-                Stock: ${product.quantity} ${product.unit}
-            </div>
-        `;
+        card.setAttribute('aria-label', `Add ${product.name} to sale`);
+        card.addEventListener('click', () => addToCart(product));
+
+        const visual = document.createElement('span');
+        visual.className = 'product-visual';
+        if (product.image) {
+            const image = document.createElement('img');
+            image.className = 'product-photo';
+            image.src = encodeURI(product.image);
+            image.alt = '';
+            image.loading = 'lazy';
+            image.onerror = () => {
+                image.remove();
+                visual.classList.add('has-fallback');
+                const fallback = document.createElement('i');
+                fallback.className = 'fas fa-seedling';
+                fallback.setAttribute('aria-hidden', 'true');
+                visual.appendChild(fallback);
+            };
+            visual.appendChild(image);
+        } else {
+            visual.classList.add('has-fallback');
+            const fallback = document.createElement('i');
+            fallback.className = 'fas fa-seedling';
+            fallback.setAttribute('aria-hidden', 'true');
+            visual.appendChild(fallback);
+        }
+
+        const details = document.createElement('span');
+        details.className = 'product-details';
+        const category = document.createElement('span');
+        category.className = 'product-category';
+        category.textContent = product.category_name || 'Feed & supplies';
+        const name = document.createElement('span');
+        name.className = 'product-name';
+        name.textContent = product.name;
+        details.append(category, name);
+
+        const footer = document.createElement('span');
+        footer.className = 'product-card-footer';
+        const price = document.createElement('span');
+        price.className = 'product-price';
+        price.textContent = formatCurrency(product.selling_price);
+        const stock = document.createElement('span');
+        stock.className = `product-stock${isLowStock ? ' low' : ''}`;
+        stock.textContent = `${product.quantity} ${product.unit || 'in stock'}`;
+        footer.append(price, stock);
+
+        const addHint = document.createElement('span');
+        addHint.className = 'product-add-hint';
+        addHint.innerHTML = '<i class="fas fa-plus" aria-hidden="true"></i><span>Add</span>';
+        card.append(visual, details, footer, addHint);
         grid.appendChild(card);
     });
 }
@@ -208,6 +269,8 @@ function updateCart() {
     }
     
     if (cart.length === 0) {
+        document.getElementById('discount').value = '0';
+        document.getElementById('checkoutDiscount').value = '0';
         cartItemsDiv.innerHTML = `
             <div class="empty-cart">
                 <i class="fas fa-shopping-cart"></i>
@@ -326,19 +389,42 @@ async function clearCart() {
 
 function updateCartSummary() {
     const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-    const discount = parseFloat(document.getElementById('discount').value) || 0;
+    const discountInput = document.getElementById('discount');
+    const requestedDiscount = Number(discountInput.value) || 0;
+    const discount = Math.min(Math.max(requestedDiscount, 0), subtotal);
     const taxRate = (typeof window.TAX_RATE === 'number' ? window.TAX_RATE : 16) / 100;
-    const tax = (subtotal - discount) * taxRate;
-    const total = subtotal - discount + tax;
+    const discountedSubtotal = Math.max(0, subtotal - discount);
+    const tax = Math.round(discountedSubtotal * taxRate * 100) / 100;
+    const total = discountedSubtotal + tax;
+    const discountError = document.getElementById('discountError');
+
+    discountInput.max = subtotal.toFixed(2);
+    document.getElementById('checkoutDiscount').max = subtotal.toFixed(2);
+    discountError.hidden = requestedDiscount <= subtotal && requestedDiscount >= 0;
     
     document.getElementById('subtotal').textContent = formatCurrency(subtotal);
     document.getElementById('tax').textContent = formatCurrency(tax);
     document.getElementById('total').textContent = formatCurrency(total);
+    document.getElementById('paymentSubtotal').textContent = formatCurrency(subtotal);
+    document.getElementById('paymentTax').textContent = formatCurrency(tax);
+    document.getElementById('modalTotal').textContent = formatCurrency(total);
+
+    const paymentModal = document.getElementById('paymentModal');
+    if (paymentModal.classList.contains('show') && document.getElementById('amountPaid').value.trim() !== '') {
+        updatePaymentChange();
+    }
+}
+
+function syncDiscountInputs(sourceInput) {
+    const otherInput = sourceInput.id === 'discount'
+        ? document.getElementById('checkoutDiscount')
+        : document.getElementById('discount');
+    otherInput.value = sourceInput.value;
+    updateCartSummary();
 }
 
 function openPaymentModal() {
-    const total = document.getElementById('total').textContent;
-    document.getElementById('modalTotal').textContent = total;
+    updateCartSummary();
     document.getElementById('amountPaid').value = '';
     document.getElementById('changeAmount').value = '';
     document.getElementById('saleNotes').value = '';
@@ -358,6 +444,14 @@ function confirmPayment() {
     const total = parseFloat(document.getElementById('total').textContent.replace(/[^0-9.]/g, ''));
     const amountPaid = parseFloat(document.getElementById('amountPaid').value) || 0;
     const paymentMethod = document.getElementById('paymentMethod').value;
+    const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    const discount = Number(document.getElementById('discount').value) || 0;
+
+    if (discount < 0 || discount > subtotal) {
+        showAlert('Discount cannot be greater than the sale subtotal', 'error');
+        document.getElementById('checkoutDiscount').focus();
+        return;
+    }
     
     if (amountPaid < total) {
         showAlert('Amount paid is less than total', 'error');
@@ -380,7 +474,7 @@ function confirmPayment() {
         payment_details: paymentMethod === 'mpesa' ? JSON.stringify(paymentDetails) : null,
         items: cart,
         subtotal: parseFloat(document.getElementById('subtotal').textContent.replace(/[^0-9.]/g, '')),
-        discount: parseFloat(document.getElementById('discount').value) || 0,
+        discount: discount,
         tax: parseFloat(document.getElementById('tax').textContent.replace(/[^0-9.]/g, '')),
         total: total,
         amount_paid: amountPaid,
@@ -407,11 +501,14 @@ function confirmPayment() {
             // Clear cart
             cart = [];
             updateCart();
-            document.getElementById('discount').value = 0;
+            document.getElementById('discount').value = '0';
+            document.getElementById('checkoutDiscount').value = '0';
             document.getElementById('customerSelect').value = '';
             
             // Reload products to update stock
             loadProducts();
+
+            sendSaleReceipts(data.sale_id);
 
             // Show receipt options
             appConfirm('Sale completed! Would you like to print the receipt?', { okText: 'Print receipt', cancelText: 'No thanks', icon: 'check' })
@@ -428,6 +525,29 @@ function confirmPayment() {
         console.error('Error:', error);
         showAlert('Error completing sale', 'error');
     });
+}
+
+function sendSaleReceipts(saleId) {
+    fetch('api/send_sale_receipts.php', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({sale_id: saleId})
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (!data.success || !data.notifications) return;
+        const attempted = Object.entries(data.notifications).filter(([, result]) => !result.skipped);
+        if (!attempted.length) return;
+        const sent = attempted.filter(([, result]) => result.success).map(([channel]) => channel === 'email' ? 'email' : 'WhatsApp');
+        const failed = attempted.filter(([, result]) => !result.success);
+        if (failed.length) {
+            const reason = failed.map(([channel, result]) => `${channel === 'email' ? 'Email' : 'WhatsApp'}: ${result.message || 'delivery failed'}`).join('; ');
+            showAlert(sent.length ? `Sent ${sent.join(' and ')}. ${reason}` : `Sale saved, but receipt delivery failed. ${reason}`, 'warning');
+        } else {
+            showAlert(`Receipt sent by ${sent.join(' and ')}.`, 'success');
+        }
+    })
+    .catch(() => showAlert('Sale saved. Could not reach the local receipt messaging service.', 'warning'));
 }
 
 function printReceipt(saleId) {

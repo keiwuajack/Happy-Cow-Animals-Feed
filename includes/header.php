@@ -1,4 +1,20 @@
+<?php
+require_once __DIR__ . '/security.php';
+$headerUserName = trim((string) ($_SESSION['full_name'] ?? 'User')) ?: 'User';
+$headerUserRole = ucfirst(str_replace('_', ' ', (string) ($_SESSION['role'] ?? 'staff')));
+$headerInitials = '';
+$headerNameParts = preg_split('/\s+/u', $headerUserName, -1, PREG_SPLIT_NO_EMPTY) ?: [];
+foreach ($headerNameParts as $headerNamePart) {
+    if (preg_match('/^./us', $headerNamePart, $headerInitialMatch)) {
+        $headerInitial = $headerInitialMatch[0];
+        $headerInitials .= function_exists('mb_strtoupper') ? mb_strtoupper($headerInitial, 'UTF-8') : strtoupper($headerInitial);
+        if (strlen($headerInitials) >= 2) break;
+    }
+}
+$headerInitials = $headerInitials ?: 'U';
+?>
 <meta name="csrf-token" content="<?php echo htmlspecialchars(security_csrf_token(), ENT_QUOTES, 'UTF-8'); ?>">
+<script src="assets/js/collapsible-lists.js?v=20261021-1" defer></script>
 <header class="header">
     <div class="header-left">
         <button class="menu-toggle" id="menuToggle">
@@ -38,24 +54,27 @@
         <div class="divider"></div>
         
         <div class="user-menu">
-            <div class="user-info" id="userMenuToggle">
-                <div class="user-avatar">
-                    <i class="fas fa-user-circle"></i>
+            <button type="button" class="user-info" id="userMenuToggle" aria-label="Account for <?php echo htmlspecialchars($headerUserName, ENT_QUOTES, 'UTF-8'); ?>" aria-haspopup="true" aria-controls="userDropdown" aria-expanded="false">
+                <span class="user-avatar" aria-hidden="true"><?php echo htmlspecialchars($headerInitials, ENT_QUOTES, 'UTF-8'); ?></span>
+                <span class="user-details">
+                    <span class="user-name"><?php echo htmlspecialchars($headerUserName, ENT_QUOTES, 'UTF-8'); ?></span>
+                    <span class="user-role"><?php echo htmlspecialchars($headerUserRole, ENT_QUOTES, 'UTF-8'); ?></span>
+                </span>
+                <i class="fas fa-chevron-down user-menu-chevron" aria-hidden="true"></i>
+            </button>
+            <div class="user-dropdown" id="userDropdown" aria-label="Account menu">
+                <div class="user-dropdown-heading">
+                    <span>Signed in as</span>
+                    <strong><?php echo htmlspecialchars($headerUserName, ENT_QUOTES, 'UTF-8'); ?></strong>
+                    <small><?php echo htmlspecialchars($headerUserRole, ENT_QUOTES, 'UTF-8'); ?> account</small>
                 </div>
-                <div class="user-details">
-                    <span class="user-name"><?php echo $_SESSION['full_name']; ?></span>
-                    <small class="user-role"><?php echo ucfirst($_SESSION['role']); ?></small>
-                </div>
-                <i class="fas fa-chevron-down"></i>
-            </div>
-            <div class="user-dropdown" id="userDropdown">
                 <a href="profile.php" class="dropdown-item">
-                    <i class="fas fa-user"></i>
-                    <span>My Profile</span>
+                    <span class="dropdown-item-icon"><i class="fas fa-user-gear" aria-hidden="true"></i></span>
+                    <span class="dropdown-item-copy"><strong>My profile</strong><small>Manage your account details</small></span>
                 </a>
                 <a href="logout.php" class="dropdown-item logout">
-                    <i class="fas fa-sign-out-alt"></i>
-                    <span>Logout</span>
+                    <span class="dropdown-item-icon"><i class="fas fa-arrow-right-from-bracket" aria-hidden="true"></i></span>
+                    <span class="dropdown-item-copy"><strong>Log out</strong><small>End your current session</small></span>
                 </a>
             </div>
         </div>

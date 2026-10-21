@@ -1,26 +1,31 @@
 <?php
 /**
  * WhatsApp Business API Integration Service
- * Supports multiple providers: Twilio, WhatsApp Cloud API, and Africa's Talking
+ * Supports Meta WhatsApp Cloud API and Twilio
  */
 
 class WhatsAppService {
     private $conn;
-    private $provider; // 'twilio', 'cloud_api', 'africastalking'
+    private $provider; // 'twilio' or 'cloud_api'
     private $apiKey;
     private $apiSecret;
     private $phoneNumberId;
     private $fromNumber;
     private $enabled;
+    private $sendReceipts = false;
     
     public function __construct() {
         global $conn;
         $this->conn = $conn;
         $this->loadSettings();
     }
+
+    public function canSendReceipt() {
+        return $this->enabled && $this->sendReceipts;
+    }
     
     private function loadSettings() {
-        $result = $this->conn->query("SELECT * FROM whatsapp_settings LIMIT 1");
+        $result = $this->conn->query("SELECT * FROM whatsapp_settings ORDER BY id LIMIT 1");
         if ($result && $result->num_rows > 0) {
             $settings = $result->fetch_assoc();
             $this->provider = $settings['provider'];
@@ -28,7 +33,8 @@ class WhatsAppService {
             $this->apiSecret = $settings['api_secret'];
             $this->phoneNumberId = $settings['phone_number_id'];
             $this->fromNumber = $settings['from_number'];
-            $this->enabled = $settings['enabled'];
+            $this->enabled = (bool) $settings['enabled'];
+            $this->sendReceipts = (bool) $settings['send_receipts'];
         }
     }
     
@@ -38,6 +44,10 @@ class WhatsAppService {
     public function sendMessage($to, $message) {
         if (!$this->enabled) {
             return ['success' => false, 'message' => 'WhatsApp service is not enabled'];
+        }
+
+        if (empty($this->apiKey)) {
+            return ['success' => false, 'message' => 'WhatsApp access token or API key is missing'];
         }
         
         $to = $this->formatPhoneNumber($to);
@@ -58,23 +68,22 @@ class WhatsAppService {
      * Send via Twilio WhatsApp API
      */
     private function sendViaTwilio($to, $message) {
+        if (empty($this->apiSecret) || empty($this->fromNumber)) {
+            return ['success' => false, 'message' => 'Twilio account secret and WhatsApp sender number are required'];
+        }
         $url = "https://api.twilio.com/2010-04-01/Accounts/{$this->apiKey}/Messages.json";
         
         $data = [
-            'From' => 'whatsapp:' . $this->fromNumber,
-            'To' => 'whatsapp:' . $to,
+            'From' => 'whatsapp:+' . $this->formatPhoneNumber($this->fromNumber),
+            'To' => 'whatsapp:+' . $to,
             'Body' => $message
         ];
         
-        $ch = curl_init($url);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_POST, true);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($data));
-        curl_setopt($ch, CURLOPT_USERPWD, $this->apiKey . ':' . $this->apiSecret);
-        
-        $response = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
+        [$response, $httpCode, $curlError] = $this->request($url, [
+            CURLOPT_POSTFIELDS => http_build_query($data),
+            CURLOPT_USERPWD => $this->apiKey . ':' . $this->apiSecret
+        ]);
+        if ($curlError !== '') return ['success' => false, 'message' => 'Twilio connection failed: ' . $curlError];
         
         $result = json_decode($response, true);
         
@@ -91,7 +100,11 @@ class WhatsAppService {
      * Send via WhatsApp Cloud API (Meta)
      */
     private function sendViaCloudAPI($to, $message) {
-        $url = "https://graph.facebook.com/v18.0/{$this->phoneNumberId}/messages";
+        if (empty($this->phoneNumberId)) {
+            return ['success' => false, 'message' => 'Meta WhatsApp Phone Number ID is required'];
+        }
+        // v18.0 expired in January 2026; use the current Graph API version.
+        $url = "https://graph.facebook.com/v26.0/{$this->phoneNumberId}/messages";
         
         $data = [
             'messaging_product' => 'whatsapp',
@@ -100,18 +113,14 @@ class WhatsAppService {
             'text' => ['body' => $message]
         ];
         
-        $ch = curl_init($url);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_POST, true);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
-        curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        [$response, $httpCode, $curlError] = $this->request($url, [
+            CURLOPT_POSTFIELDS => json_encode($data),
+            CURLOPT_HTTPHEADER => [
             'Content-Type: application/json',
             'Authorization: Bearer ' . $this->apiKey
+            ]
         ]);
-        
-        $response = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
+        if ($curlError !== '') return ['success' => false, 'message' => 'Meta WhatsApp connection failed: ' . $curlError];
         
         $result = json_decode($response, true);
         
@@ -128,57 +137,30 @@ class WhatsAppService {
      * Send via Africa's Talking
      */
     private function sendViaAfricasTalking($to, $message) {
-        $url = "https://api.africastalking.com/version1/messaging";
-        
-        $data = [
-            'username' => $this->apiKey,
-            'to' => $to,
-            'message' => $message
-        ];
-        
-        $ch = curl_init($url);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_POST, true);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($data));
-        curl_setopt($ch, CURLOPT_HTTPHEADER, [
-            'apiKey: ' . $this->apiSecret,
-            'Content-Type: application/x-www-form-urlencoded'
-        ]);
-        
-        $response = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
-        
-        $result = json_decode($response, true);
-        
-        if ($httpCode == 201 && isset($result['SMSMessageData'])) {
-            $this->logMessage($to, $message, 'sent', $response);
-            return ['success' => true, 'message' => 'Message sent successfully'];
-        }
-        
-        $this->logMessage($to, $message, 'failed', $response);
-        return ['success' => false, 'message' => 'Failed to send message'];
+        return ['success' => false, 'message' => "Africa's Talking is an SMS endpoint in this POS, not a WhatsApp provider. Choose Meta Cloud API or Twilio."];
     }
     
     /**
      * Send receipt via WhatsApp
      */
     public function sendReceipt($phone, $invoiceNumber, $total, $customerName, $items) {
-        $message = "🧾 *RECEIPT - {$invoiceNumber}*\n\n";
+        if (!$this->sendReceipts) {
+            return ['success' => false, 'message' => 'WhatsApp receipts are disabled in WhatsApp Settings'];
+        }
+        $message = "*RECEIPT - {$invoiceNumber}*\n\n";
         $message .= "Customer: {$customerName}\n";
         $message .= "Date: " . date('d/m/Y H:i') . "\n\n";
         $message .= "Items:\n";
-        
         foreach ($items as $item) {
-            $message .= "• {$item['name']} x{$item['quantity']} - KSh " . number_format($item['total'], 2) . "\n";
+            $name = preg_replace('/[\r\n]+/', ' ', (string) ($item['name'] ?? 'Product'));
+            $quantity = (int) ($item['quantity'] ?? 0);
+            $lineTotal = (float) ($item['total'] ?? 0);
+            $message .= "- {$name} x{$quantity} - KSh " . number_format($lineTotal, 2) . "\n";
         }
-        
-        $message .= "\n*Total: KSh " . number_format($total, 2) . "*\n\n";
-        $message .= "Thank you for your business! 🙏";
-        
+        $message .= "\n*Total: KSh " . number_format((float) $total, 2) . "*\n\n";
+        $message .= "Thank you for your business!";
         return $this->sendMessage($phone, $message);
     }
-    
     /**
      * Send low stock alert
      */
@@ -225,17 +207,33 @@ class WhatsAppService {
      * Format phone number to international format
      */
     private function formatPhoneNumber($phone) {
-        $phone = preg_replace('/[^0-9]/', '', $phone);
-        
-        if (substr($phone, 0, 1) === '0') {
-            $phone = '254' . substr($phone, 1);
-        } elseif (substr($phone, 0, 1) === '+') {
-            $phone = substr($phone, 1);
-        } elseif (substr($phone, 0, 3) !== '254') {
-            $phone = '254' . $phone;
+        $rawPhone = trim((string) $phone);
+        $hasInternationalPrefix = strpos($rawPhone, '+') === 0;
+        $digits = preg_replace('/\D/', '', $rawPhone);
+        if (strpos($digits, '0') === 0) return '254' . substr($digits, 1);
+        if (strpos($digits, '254') === 0) return $digits;
+        if ($hasInternationalPrefix) return $digits;
+        if (strlen($digits) === 9) return '254' . $digits;
+        return $digits;
+    }
+
+    private function request($url, $options = []) {
+        if (!function_exists('curl_init')) {
+            return ['', 0, 'PHP cURL extension is not enabled'];
         }
-        
-        return $phone;
+        $ch = curl_init($url);
+        if (!$ch) return ['', 0, 'Could not initialize cURL'];
+        curl_setopt_array($ch, array_merge([
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_POST => true,
+            CURLOPT_CONNECTTIMEOUT => 10,
+            CURLOPT_TIMEOUT => 30
+        ], $options));
+        $response = curl_exec($ch);
+        $error = $response === false ? curl_error($ch) : '';
+        $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+        return [$response === false ? '' : $response, $httpCode, $error];
     }
     
     /**

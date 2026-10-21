@@ -18,8 +18,19 @@ $sql = "SELECT s.*, c.name as customer_name, u.full_name as user_name
         LEFT JOIN users u ON s.user_id = u.id
         WHERE s.id = $saleId";
 
+if (strtolower((string) ($_SESSION['role'] ?? '')) === 'cashier') {
+    $cashierId = (int) $_SESSION['user_id'];
+    $sql .= " AND s.user_id = {$cashierId}";
+}
+
 $result = query($sql);
 $sale = $result->fetch_assoc();
+
+if (!$sale) {
+    http_response_code(404);
+    echo json_encode(['success' => false, 'message' => 'Sale not found']);
+    exit();
+}
 
 // Get sale items
 $sql = "SELECT * FROM sale_items WHERE sale_id = $saleId";

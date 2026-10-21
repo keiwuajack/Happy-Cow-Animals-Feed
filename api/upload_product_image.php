@@ -40,13 +40,21 @@ if (!move_uploaded_file($file['tmp_name'], $dir . $name)) {
     exit();
 }
 
-$old = query("SELECT image FROM products WHERE id = $id")->fetch_assoc();
+$oldStmt = $conn->prepare("SELECT image FROM products WHERE id = ?");
+$oldStmt->bind_param('i', $id);
+$oldStmt->execute();
+$old = $oldStmt->get_result()->fetch_assoc();
+$oldStmt->close();
 $path = 'uploads/products/' . $name;
-if (!query("UPDATE products SET image = '$path' WHERE id = $id")) {
+$updateStmt = $conn->prepare("UPDATE products SET image = ? WHERE id = ?");
+$updateStmt->bind_param('si', $path, $id);
+if (!$updateStmt->execute()) {
+    $updateStmt->close();
     @unlink($dir . $name);
     echo json_encode(['success' => false, 'message' => 'Could not update product']);
     exit();
 }
+$updateStmt->close();
 if (!empty($old['image']) && strpos($old['image'], 'uploads/products/') === 0) {
     @unlink(__DIR__ . '/../' . $old['image']);
 }

@@ -1,0 +1,106 @@
+.table-list-folder {
+    margin: 0 0 12px;
+    overflow: hidden;
+    border: 1px solid #e1e9e3;
+    border-radius: 11px;
+    background: #fff;
+}
+
+.table-list-folder > summary {
+    display: flex;
+    min-height: 48px;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 13px;
+    list-style: none;
+    background: #f7faf8;
+    color: #334b3b;
+    cursor: pointer;
+    user-select: none;
+}
+
+.table-list-folder > summary::-webkit-details-marker {
+    display: none;
+}
+
+.table-list-folder > summary:focus-visible {
+    position: relative;
+    z-index: 1;
+    outline: 3px solid rgba(55, 144, 77, .3);
+    outline-offset: -3px;
+}
+
+.table-list-folder-icon {
+    display: flex;
+    width: 29px;
+    height: 29px;
+    flex: 0 0 29px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    background: #eaf3ec;
+    color: #4e895e;
+    font-size: 12px;
+}
+
+.table-list-folder-name {
+    min-width: 0;
+    overflow: hidden;
+    font-size: 13px;
+    font-weight: 700;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.table-list-folder-count {
+    flex: 0 0 auto;
+    margin-left: auto;
+    padding: 5px 8px;
+    border: 1px solid #e1e9e3;
+    border-radius: 999px;
+    background: #fff;
+    color: #687b6d;
+    font-size: 10px;
+    font-weight: 650;
+    white-space: nowrap;
+}
+
+.table-list-folder-chevron {
+    flex: 0 0 auto;
+    margin-left: 2px;
+    color: #76877a;
+    font-size: 11px;
+    transition: transform .18s ease;
+}
+
+.table-list-folder[open] > summary {
+    border-bottom: 1px solid #e8eee9;
+    background: #f5f9f6;
+}
+
+.table-list-folder[open] > summary .table-list-folder-chevron {
+    transform: rotate(180deg);
+}
+
+.table-list-folder .table-responsive,
+.table-list-folder .table-container {
+    margin: 0;
+    border: 0;
+    border-radius: 0;
+}
+
+@media (max-width: 520px) {
+    .table-list-folder > summary {
+        gap: 7px;
+        padding: 8px 9px;
+    }
+
+    .table-list-folder-name {
+        font-size: 12px;
+    }
+
+    .table-list-folder-count {
+        padding: 4px 6px;
+        font-size: 9px;
+    }
+}

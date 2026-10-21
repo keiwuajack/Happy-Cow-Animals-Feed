@@ -54,7 +54,10 @@ if ($id) {
     if (query($sql)) {
         echo json_encode(['success' => true, 'message' => 'Product updated successfully', 'id' => $id]);
     } else {
-        echo json_encode(['success' => false, 'message' => 'Error updating product. SKU might already exist.']);
+        $message = $conn->errno === 1062
+            ? 'A product with this SKU or barcode already exists.'
+            : 'Could not update product. Check the product details and try again.';
+        echo json_encode(['success' => false, 'message' => $message]);
     }
 } else {
     // Insert new product
@@ -66,7 +69,10 @@ if ($id) {
     if (query($sql)) {
         echo json_encode(['success' => true, 'message' => 'Product added successfully', 'id' => $conn->insert_id]);
     } else {
-        echo json_encode(['success' => false, 'message' => 'Error adding product. SKU might already exist.']);
+        $message = $conn->errno === 1062
+            ? 'A product with this SKU or barcode already exists.'
+            : 'Could not add product. Check the product details and try again.';
+        echo json_encode(['success' => false, 'message' => $message]);
     }
 }
 ?>
